@@ -15,6 +15,50 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. What is Amanda?](#1-what-is-amanda)
+  - [Key characteristics](#key-characteristics)
+  - [Amanda vs Bareos](#amanda-vs-bareos)
+- [2. Architecture](#2-architecture)
+- [3. Installation](#3-installation)
+  - [3.1 Install Amanda server](#31-install-amanda-server)
+  - [3.2 Create the Amanda user](#32-create-the-amanda-user)
+  - [3.3 Set up SSH key authentication](#33-set-up-ssh-key-authentication)
+  - [3.4 Configure .amandahosts on clients](#34-configure-amandahosts-on-clients)
+  - [3.5 Install amandad on clients](#35-install-amandad-on-clients)
+  - [3.6 Configure xinetd/systemd for amandad (on clients)](#36-configure-xinetdsystemd-for-amandad-on-clients)
+- [4. Amanda Configuration Directory](#4-amanda-configuration-directory)
+  - [Create a configuration set](#create-a-configuration-set)
+- [5. Virtual Tape Library Setup](#5-virtual-tape-library-setup)
+  - [Configure the vtape (virtual tape) changer](#configure-the-vtape-virtual-tape-changer)
+- [6. amanda.conf — Complete Reference](#6-amandaconf--complete-reference)
+  - [Key amanda.conf directives explained](#key-amandaconf-directives-explained)
+- [7. disklist — Defining What to Back Up](#7-disklist--defining-what-to-back-up)
+  - [disklist with per-DLE options](#disklist-with-per-dle-options)
+- [8. Initialise Amanda](#8-initialise-amanda)
+- [9. amcheck — Pre-backup Validation](#9-amcheck--pre-backup-validation)
+- [10. amdump — Running Backups](#10-amdump--running-backups)
+  - [What amdump does](#what-amdump-does)
+- [11. Amanda Report](#11-amanda-report)
+- [12. amadmin — Administration Tool](#12-amadmin--administration-tool)
+- [13. amrestore — Restoring Files](#13-amrestore--restoring-files)
+  - [13.1 Find which tape a file is on](#131-find-which-tape-a-file-is-on)
+  - [13.2 amrestore — restore from tape/VTL](#132-amrestore--restore-from-tapevtl)
+  - [13.3 amrecover — Interactive recovery (recommended)](#133-amrecover--interactive-recovery-recommended)
+- [14. Automating Amanda with Cron](#14-automating-amanda-with-cron)
+- [15. Multiple Configuration Sets](#15-multiple-configuration-sets)
+- [Lab Exercises](#lab-exercises)
+  - [Lab 08-1: Install and configure Amanda server](#lab-08-1-install-and-configure-amanda-server)
+  - [Lab 08-2: Write amanda.conf and disklist](#lab-08-2-write-amandaconf-and-disklist)
+  - [Lab 08-3: Run first backup](#lab-08-3-run-first-backup)
+  - [Lab 08-4: Interactive restore with amrecover](#lab-08-4-interactive-restore-with-amrecover)
+  - [Lab 08-5: Set up cron automation](#lab-08-5-set-up-cron-automation)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. What is Amanda?
 
 Amanda (Advanced Maryland Automatic Network Disk Archiver) is an open-source backup server that can back up multiple clients over a network. Originally designed for tape, it also supports disk-based virtual tape libraries (VTL).

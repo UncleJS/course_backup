@@ -13,6 +13,45 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. Why Backups Exist](#1-why-backups-exist)
+- [2. Core Terminology](#2-core-terminology)
+  - [Recovery Point Objective (RPO)](#recovery-point-objective-rpo)
+  - [Recovery Time Objective (RTO)](#recovery-time-objective-rto)
+  - [The relationship between RPO, RTO, and cost](#the-relationship-between-rpo-rto-and-cost)
+- [3. Backup Types](#3-backup-types)
+  - [3.1 Full Backup](#31-full-backup)
+  - [3.2 Incremental Backup](#32-incremental-backup)
+  - [3.3 Differential Backup](#33-differential-backup)
+  - [3.4 Synthetic Full Backup](#34-synthetic-full-backup)
+  - [3.5 Mirror / Sync](#35-mirror--sync)
+  - [Comparison Table](#comparison-table)
+- [4. The 3-2-1 Backup Rule](#4-the-3-2-1-backup-rule)
+  - [Why each number matters](#why-each-number-matters)
+  - [Modern extension: 3-2-1-1-0](#modern-extension-3-2-1-1-0)
+  - [Practical 3-2-1 on RHEL 10](#practical-3-2-1-on-rhel-10)
+- [5. Backup Lifecycle](#5-backup-lifecycle)
+  - [Stage descriptions](#stage-descriptions)
+  - [Retention policies](#retention-policies)
+- [6. What Makes a Good Backup](#6-what-makes-a-good-backup)
+- [7. Backup Consistency](#7-backup-consistency)
+  - [Types of consistency](#types-of-consistency)
+  - [Achieving consistency on RHEL 10](#achieving-consistency-on-rhel-10)
+- [8. Backup vs. Replication vs. High Availability](#8-backup-vs-replication-vs-high-availability)
+- [9. Backup Validation](#9-backup-validation)
+- [10. Planning Your Backup Strategy](#10-planning-your-backup-strategy)
+  - [Requirements gathering checklist](#requirements-gathering-checklist)
+  - [Decision tree for choosing backup type](#decision-tree-for-choosing-backup-type)
+- [Lab Exercises](#lab-exercises)
+  - [Lab 00-1: Define your RPO and RTO](#lab-00-1-define-your-rpo-and-rto)
+  - [Lab 00-2: Design a 3-2-1 backup plan](#lab-00-2-design-a-3-2-1-backup-plan)
+  - [Lab 00-3: Identify what is NOT a backup](#lab-00-3-identify-what-is-not-a-backup)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. Why Backups Exist
 
 Data loss happens. The cause is rarely one dramatic event — it is more commonly:

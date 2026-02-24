@@ -13,6 +13,51 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. Filesystem-Level vs File-Level Backup](#1-filesystem-level-vs-file-level-backup)
+- [2. RHEL 10 Default Filesystem: XFS](#2-rhel-10-default-filesystem-xfs)
+- [3. Part A: `dump` and `restore` (for ext4/ext2/ext3)](#3-part-a-dump-and-restore-for-ext4ext2ext3)
+  - [3.1 Installing dump](#31-installing-dump)
+  - [3.2 The dump level system](#32-the-dump-level-system)
+  - [3.3 Level-0 (full) dump](#33-level-0-full-dump)
+  - [3.4 The `/var/lib/dumpdates` file](#34-the-varlibdumpdates-file)
+  - [3.5 Incremental dump (level 1+)](#35-incremental-dump-level-1)
+  - [3.6 Dump options reference](#36-dump-options-reference)
+  - [3.7 Restoring with `restore`](#37-restoring-with-restore)
+- [4. Part B: `xfsdump` and `xfsrestore` (for XFS — RHEL 10 default)](#4-part-b-xfsdump-and-xfsrestore-for-xfs--rhel-10-default)
+  - [4.1 Installing xfsdump](#41-installing-xfsdump)
+  - [4.2 xfsdump concepts](#42-xfsdump-concepts)
+  - [4.3 Level-0 (full) dump of an XFS filesystem](#43-level-0-full-dump-of-an-xfs-filesystem)
+  - [4.4 xfsdump options reference](#44-xfsdump-options-reference)
+  - [4.5 Incremental dumps](#45-incremental-dumps)
+  - [4.6 Viewing the xfsdump inventory](#46-viewing-the-xfsdump-inventory)
+  - [4.7 Estimating dump size](#47-estimating-dump-size)
+  - [4.8 Dumping over SSH (piped to remote)](#48-dumping-over-ssh-piped-to-remote)
+- [5. Restoring with `xfsrestore`](#5-restoring-with-xfsrestore)
+  - [5.1 Interactive restore (recommended)](#51-interactive-restore-recommended)
+  - [5.2 Restore entire filesystem](#52-restore-entire-filesystem)
+  - [5.3 Applying incremental restores in order](#53-applying-incremental-restores-in-order)
+  - [5.4 Restore a subtree (directory)](#54-restore-a-subtree-directory)
+  - [5.5 Restore a single file](#55-restore-a-single-file)
+  - [5.6 xfsrestore options reference](#56-xfsrestore-options-reference)
+- [6. XFS Freeze for Consistent Live Backups](#6-xfs-freeze-for-consistent-live-backups)
+- [7. Comparing dump/xfsdump Approaches](#7-comparing-dumpxfsdump-approaches)
+  - [When to use `xfsdump`](#when-to-use-xfsdump)
+  - [When to use `tar` or `rsync` instead](#when-to-use-tar-or-rsync-instead)
+  - [Tool decision matrix](#tool-decision-matrix)
+- [8. Automation Script](#8-automation-script)
+- [Lab Exercises](#lab-exercises)
+  - [Lab 04-1: Identify your filesystem types](#lab-04-1-identify-your-filesystem-types)
+  - [Lab 04-2: Full xfsdump of /boot or /home](#lab-04-2-full-xfsdump-of-boot-or-home)
+  - [Lab 04-3: Make changes and run incremental](#lab-04-3-make-changes-and-run-incremental)
+  - [Lab 04-4: Interactive restore](#lab-04-4-interactive-restore)
+  - [Lab 04-5: Run the automated backup script](#lab-04-5-run-the-automated-backup-script)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. Filesystem-Level vs File-Level Backup
 
 File-level tools (tar, rsync) operate on the VFS layer — they open files through the kernel and copy them one by one. Filesystem-level tools operate at a lower level — they read the filesystem structure directly.

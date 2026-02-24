@@ -14,6 +14,48 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. Why LVM Snapshots for Backup?](#1-why-lvm-snapshots-for-backup)
+- [2. How LVM Snapshots Work (Copy-on-Write)](#2-how-lvm-snapshots-work-copy-on-write)
+- [3. Prerequisites](#3-prerequisites)
+  - [LVM must be in use](#lvm-must-be-in-use)
+  - [Available free space in the Volume Group](#available-free-space-in-the-volume-group)
+- [4. Thick Snapshots](#4-thick-snapshots)
+  - [4.1 Creating a thick snapshot](#41-creating-a-thick-snapshot)
+  - [4.2 Viewing snapshot information](#42-viewing-snapshot-information)
+  - [4.3 Mounting a snapshot read-only](#43-mounting-a-snapshot-read-only)
+  - [4.4 Removing a snapshot](#44-removing-a-snapshot)
+- [5. Thin Snapshots](#5-thin-snapshots)
+  - [5.1 When to use thin vs thick snapshots](#51-when-to-use-thin-vs-thick-snapshots)
+  - [5.2 Creating a thin pool](#52-creating-a-thin-pool)
+  - [5.3 Creating a thin LV and thin snapshot](#53-creating-a-thin-lv-and-thin-snapshot)
+  - [5.4 Monitoring thin pool usage](#54-monitoring-thin-pool-usage)
+- [6. Snapshot Overflow — The Critical Risk](#6-snapshot-overflow--the-critical-risk)
+  - [Preventing overflow](#preventing-overflow)
+  - [How much space to allocate?](#how-much-space-to-allocate)
+  - [Extending a thick snapshot that is filling up](#extending-a-thick-snapshot-that-is-filling-up)
+- [7. Complete Snapshot-Backed Backup Workflow](#7-complete-snapshot-backed-backup-workflow)
+  - [7.1 Snapshot + xfsdump](#71-snapshot--xfsdump)
+  - [7.2 Snapshot + rsync](#72-snapshot--rsync)
+  - [7.3 Snapshot + tar](#73-snapshot--tar)
+- [8. Production Snapshot Backup Script](#8-production-snapshot-backup-script)
+- [9. Database-Consistent Snapshots](#9-database-consistent-snapshots)
+  - [MariaDB/MySQL](#mariadbmysql)
+  - [Better approach: use mariabackup](#better-approach-use-mariabackup)
+  - [PostgreSQL](#postgresql)
+- [10. Restoring from an LVM Snapshot (Direct Method)](#10-restoring-from-an-lvm-snapshot-direct-method)
+- [Lab Exercises](#lab-exercises)
+  - [Lab 05-1: Create and inspect an LVM snapshot](#lab-05-1-create-and-inspect-an-lvm-snapshot)
+  - [Lab 05-2: Mount snapshot and verify consistency](#lab-05-2-mount-snapshot-and-verify-consistency)
+  - [Lab 05-3: Back up from snapshot using rsync](#lab-05-3-back-up-from-snapshot-using-rsync)
+  - [Lab 05-4: Monitor and clean up](#lab-05-4-monitor-and-clean-up)
+  - [Lab 05-5: Run the production snapshot backup script](#lab-05-5-run-the-production-snapshot-backup-script)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. Why LVM Snapshots for Backup?
 
 The core problem with backing up a live system is **consistency** — files change while the backup runs. A database writing a transaction, a log file being rotated, a config file being edited — all can produce an inconsistent backup.

@@ -14,6 +14,48 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. What is rsync?](#1-what-is-rsync)
+- [2. rsync Flag Reference](#2-rsync-flag-reference)
+  - [Essential flags](#essential-flags)
+  - [Sync behaviour flags](#sync-behaviour-flags)
+  - [Metadata and extended attributes](#metadata-and-extended-attributes)
+  - [Backup and incremental flags](#backup-and-incremental-flags)
+  - [Transfer and safety flags](#transfer-and-safety-flags)
+  - [Path and filter flags](#path-and-filter-flags)
+- [3. Trailing Slash Gotcha](#3-trailing-slash-gotcha)
+- [4. Local Backups](#4-local-backups)
+  - [Simple local sync](#simple-local-sync)
+  - [Local backup with stats](#local-backup-with-stats)
+- [5. Remote Backups over SSH](#5-remote-backups-over-ssh)
+  - [Push: source machine sends to remote server](#push-source-machine-sends-to-remote-server)
+  - [Pull: backup server fetches from clients](#pull-backup-server-fetches-from-clients)
+  - [Push vs Pull — when to use each](#push-vs-pull--when-to-use-each)
+- [6. SSH Key Setup for Automated Backups](#6-ssh-key-setup-for-automated-backups)
+  - [Restrict backup key to rsync only (security hardening)](#restrict-backup-key-to-rsync-only-security-hardening)
+- [7. Snapshot-Style Incrementals with `--link-dest`](#7-snapshot-style-incrementals-with---link-dest)
+  - [How it works](#how-it-works)
+  - [Basic `--link-dest` usage](#basic---link-dest-usage)
+  - [What if yesterday's snapshot doesn't exist?](#what-if-yesterdays-snapshot-doesnt-exist)
+- [8. Production Snapshot Backup Script](#8-production-snapshot-backup-script)
+  - [Configuration ###](#configuration-)
+- [9. Bandwidth Limiting](#9-bandwidth-limiting)
+- [10. Partial Transfers and Resume](#10-partial-transfers-and-resume)
+- [11. rsync Daemon Mode (Alternative to SSH)](#11-rsync-daemon-mode-alternative-to-ssh)
+- [12. Verifying rsync Backups](#12-verifying-rsync-backups)
+- [13. Restoring from rsync Snapshots](#13-restoring-from-rsync-snapshots)
+- [Lab Exercises](#lab-exercises)
+  - [Lab 03-1: Basic local rsync](#lab-03-1-basic-local-rsync)
+  - [Lab 03-2: Test --delete behaviour](#lab-03-2-test---delete-behaviour)
+  - [Lab 03-3: Snapshot incrementals with --link-dest](#lab-03-3-snapshot-incrementals-with---link-dest)
+  - [Lab 03-4: SSH backup to remote (requires two machines)](#lab-03-4-ssh-backup-to-remote-requires-two-machines)
+  - [Lab 03-5: Run the production snapshot script](#lab-03-5-run-the-production-snapshot-script)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. What is rsync?
 
 `rsync` is a fast, versatile file synchronisation tool. It uses a **delta transfer algorithm** — it only transfers the parts of files that have changed. This makes it extremely efficient for regular backups over slow or expensive links.

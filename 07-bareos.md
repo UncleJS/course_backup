@@ -21,30 +21,139 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. Bareos Architecture](#1-bareos-architecture)
+  - [Component descriptions](#component-descriptions)
+  - [Communication flow for a backup job](#communication-flow-for-a-backup-job)
+  - [WebUI communication flow](#webui-communication-flow)
+- [2. Installation](#2-installation)
+  - [2.1 Add the Bareos repository](#21-add-the-bareos-repository)
+  - [2.2 Install Bareos packages](#22-install-bareos-packages)
+  - [2.3 Configure and start MariaDB](#23-configure-and-start-mariadb)
+  - [2.4 Create the Bareos catalog database](#24-create-the-bareos-catalog-database)
+  - [2.5 Configure firewall](#25-configure-firewall)
+  - [2.6 Configure SELinux](#26-configure-selinux)
+  - [2.7 Enable and start all Bareos services](#27-enable-and-start-all-bareos-services)
+- [3. Configuration Directory Structure](#3-configuration-directory-structure)
+- [4. Director Configuration — Deep Dive](#4-director-configuration--deep-dive)
+  - [4.1 Director self-reference (`bareos-dir.d/director/bareos-dir.conf`)](#41-director-self-reference-bareos-dirdirectorbareos-dirconf)
+  - [4.2 Catalog resource (`bareos-dir.d/catalog/MyCatalog.conf`)](#42-catalog-resource-bareos-dircatalogmycatalogconf)
+  - [4.3 Messages resource (`bareos-dir.d/messages/Standard.conf`)](#43-messages-resource-bareos-dirmessagesstandardconf)
+  - [4.4 JobDefs resource — reusable job templates](#44-jobdefs-resource--reusable-job-templates)
+  - [4.5 Schedule resource (`bareos-dir.d/schedule/WeeklyCycle.conf`)](#45-schedule-resource-bareos-dirscheduleweeklycycleconf)
+  - [4.6 FileSet resource (`bareos-dir.d/fileset/`)](#46-fileset-resource-bareos-dirfileset)
+  - [4.7 Pool resource (`bareos-dir.d/pool/`)](#47-pool-resource-bareos-dirpool)
+  - [4.8 Storage resource (`bareos-dir.d/storage/File.conf`)](#48-storage-resource-bareos-dirstoragefileconf)
+  - [4.9 Client resource (`bareos-dir.d/client/bareos-fd.conf`)](#49-client-resource-bareos-dirclientbareos-fdconf)
+  - [4.10 Job resource (`bareos-dir.d/job/`)](#410-job-resource-bareos-dirjob)
+- [5. Storage Daemon Configuration](#5-storage-daemon-configuration)
+  - [5.1 Storage Daemon self-definition (`bareos-sd.d/storage/bareos-sd.conf`)](#51-storage-daemon-self-definition-bareos-sdstoragebareos-sdconf)
+  - [5.2 Authorise the Director to connect (`bareos-sd.d/director/bareos-dir.conf`)](#52-authorise-the-director-to-connect-bareos-sddirectorbareos-dirconf)
+  - [5.3 Device resource — disk-based storage (`bareos-sd.d/device/FileStorage.conf`)](#53-device-resource--disk-based-storage-bareos-sddevicefilestorageconf)
+- [6. File Daemon Configuration](#6-file-daemon-configuration)
+  - [6.1 File Daemon self-definition (`bareos-fd.d/client/myself.conf`)](#61-file-daemon-self-definition-bareos-fdclientmyselfconf)
+  - [6.2 Authorise the Director to connect (`bareos-fd.d/director/bareos-dir.conf`)](#62-authorise-the-director-to-connect-bareos-fddirectorbareos-dirconf)
+- [7. Setting Passwords](#7-setting-passwords)
+- [8. bconsole Configuration](#8-bconsole-configuration)
+- [9. Validate and Reload Configuration](#9-validate-and-reload-configuration)
+- [10. bconsole — Complete Command Reference](#10-bconsole--complete-command-reference)
+  - [10.1 Connecting](#101-connecting)
+  - [10.2 Status commands](#102-status-commands)
+  - [10.3 Running jobs manually](#103-running-jobs-manually)
+  - [10.4 Monitoring jobs](#104-monitoring-jobs)
+  - [10.5 Listing volumes and files](#105-listing-volumes-and-files)
+  - [10.6 Volume management](#106-volume-management)
+  - [10.7 Pruning the catalog](#107-pruning-the-catalog)
+  - [10.8 Cancelling jobs](#108-cancelling-jobs)
+  - [10.9 Show config resources](#109-show-config-resources)
+- [11. The Interactive Restore Wizard](#11-the-interactive-restore-wizard)
+  - [Restore the latest backup of a client](#restore-the-latest-backup-of-a-client)
+  - [Restore to a specific date](#restore-to-a-specific-date)
+  - [Restore all files from the latest backup](#restore-all-files-from-the-latest-backup)
+- [12. Adding a Remote Client](#12-adding-a-remote-client)
+  - [12.1 Install File Daemon on the client](#121-install-file-daemon-on-the-client)
+  - [12.2 Configure File Daemon on the client](#122-configure-file-daemon-on-the-client)
+  - [12.3 Add the client to the Director](#123-add-the-client-to-the-director)
+- [13. Database Maintenance](#13-database-maintenance)
+  - [13.1 Automated catalog backup](#131-automated-catalog-backup)
+  - [13.2 Manual catalog backup](#132-manual-catalog-backup)
+  - [13.3 Catalog database check and repair](#133-catalog-database-check-and-repair)
+  - [13.4 Catalog size management](#134-catalog-size-management)
+  - [13.5 Pruning the catalog from bconsole](#135-pruning-the-catalog-from-bconsole)
+- [14. TLS Configuration](#14-tls-configuration)
+  - [14.1 Generate TLS certificates](#141-generate-tls-certificates)
+  - [14.2 Enable TLS in Director](#142-enable-tls-in-director)
+  - [14.3 Enable TLS in Storage Daemon](#143-enable-tls-in-storage-daemon)
+  - [14.4 Enable TLS in File Daemon](#144-enable-tls-in-file-daemon)
+  - [14.5 Verify TLS is active](#145-verify-tls-is-active)
+- [15. Monitoring and Alerting](#15-monitoring-and-alerting)
+  - [15.1 Email notifications](#151-email-notifications)
+  - [15.2 systemd journal monitoring](#152-systemd-journal-monitoring)
+  - [15.3 Bareos log file](#153-bareos-log-file)
+  - [15.4 Monitor from bconsole](#154-monitor-from-bconsole)
+- [16. bextract — Restore Without a Running Director](#16-bextract--restore-without-a-running-director)
+- [17. Bareos WebUI](#17-bareos-webui)
+  - [17.1 Architecture](#171-architecture)
+  - [17.2 Features](#172-features)
+  - [17.3 Install bareos-webui](#173-install-bareos-webui)
+  - [17.4 SELinux — Required Boolean](#174-selinux--required-boolean)
+  - [17.5 Apache Configuration](#175-apache-configuration)
+  - [17.6 Director: Console Resource for WebUI](#176-director-console-resource-for-webui)
+  - [17.7 Director: Profile Resources](#177-director-profile-resources)
+  - [17.8 `/etc/bareos-webui/directors.ini` — Full Annotated Config](#178-etcbareos-webuilirectorsini--full-annotated-config)
+  - [17.9 `/etc/bareos-webui/configuration.ini` — Full Annotated Config](#179-etcbareos-webuiconfigurationini--full-annotated-config)
+  - [17.10 Bvfs Cache — Keep the File-Tree Browser Responsive](#1710-bvfs-cache--keep-the-file-tree-browser-responsive)
+  - [17.11 TLS Between WebUI and Director (Certificate-Based)](#1711-tls-between-webui-and-director-certificate-based)
+  - [17.12 NGINX Alternative](#1712-nginx-alternative)
+  - [17.13 Multi-Director Setup](#1713-multi-director-setup)
+  - [17.14 Accessing the WebUI](#1714-accessing-the-webui)
+- [Lab Exercises](#lab-exercises)
+  - [Lab 07-1: Complete Bareos installation](#lab-07-1-complete-bareos-installation)
+  - [Lab 07-2: Configure a FileSet and Job](#lab-07-2-configure-a-fileset-and-job)
+  - [Lab 07-3: Run a backup and verify](#lab-07-3-run-a-backup-and-verify)
+  - [Lab 07-4: Restore a single file](#lab-07-4-restore-a-single-file)
+  - [Lab 07-5: Add a second client](#lab-07-5-add-a-second-client)
+  - [Lab 07-6: Configure TLS](#lab-07-6-configure-tls)
+  - [Lab 07-7: Test bextract (bare-metal restore simulation)](#lab-07-7-test-bextract-bare-metal-restore-simulation)
+  - [Lab 07-8: Configure email alerting](#lab-07-8-configure-email-alerting)
+  - [Lab 07-9: Install and use Bareos WebUI](#lab-07-9-install-and-use-bareos-webui)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. Bareos Architecture
 
 Bareos (Backup Archiving REcovery Open Sourced) is a network backup solution forked from Bacula. It uses a client/server architecture with separate components that communicate over TCP.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      BACKUP SERVER                          │
-│                                                             │
-│  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐  │
-│  │   Director   │   │   Storage    │   │    Catalog     │  │
-│  │ (bareos-dir) │──►│   Daemon     │   │   (MariaDB)    │  │
-│  │  Port 9101   │   │ (bareos-sd)  │   │   Port 3306    │  │
-│  │              │   │  Port 9103   │   │                │  │
-│  └──────┬───────┘   └──────────────┘   └────────────────┘  │
-│         │                                                   │
-└─────────┼───────────────────────────────────────────────────┘
-          │  TCP 9102
-          │
-    ┌─────▼──────────┐        ┌──────────────────┐
-    │  File Daemon   │        │  File Daemon     │
-    │ (bareos-fd)    │        │ (bareos-fd)      │
-    │ backup-server  │        │ backup-client-1  │
-    │  (local)       │        │  (remote)        │
-    └────────────────┘        └──────────────────┘
+                          ┌──────────────────────────────────────────────────────────────────┐
+                          │                         BACKUP SERVER                            │
+                          │                                                                  │
+  ┌──────────┐  HTTPS/80  │  ┌─────────────┐  PHP-FPM  ┌─────────────────┐                 │
+  │ Browser  │───────────►│  │  Apache     │──────────►│  bareos-webui   │                 │
+  └──────────┘            │  │  httpd      │           │  (PHP/ZF2 app)  │                 │
+                          │  └─────────────┘           └────────┬────────┘                 │
+                          │                                     │ TCP 9101                  │
+                          │  ┌──────────────┐                   │                           │
+  bconsole ───TCP 9101───►│  │   Director   │◄──────────────────┘                           │
+                          │  │ (bareos-dir) │──────────────────────────────────────────┐    │
+                          │  │  Port 9101   │   ┌──────────────┐   ┌────────────────┐  │    │
+                          │  └──────┬───────┘   │   Storage    │   │    Catalog     │  │    │
+                          │         │           │   Daemon     │◄──│   (MariaDB)    │  │    │
+                          │         │           │ (bareos-sd)  │   │   Port 3306    │  │    │
+                          │         │           │  Port 9103   │   └────────────────┘  │    │
+                          │         │           └──────────────┘                       │    │
+                          └─────────┼─────────────────────────────────────────────────-┘    │
+                                    │  TCP 9102                                              │
+                                    │                                                        │
+                              ┌─────▼──────────┐        ┌──────────────────┐                │
+                              │  File Daemon   │        │  File Daemon     │                │
+                              │ (bareos-fd)    │        │ (bareos-fd)      │                │
+                              │ backup-server  │        │ backup-client-1  │                │
+                              │  (local)       │        │  (remote)        │                │
+                              └────────────────┘        └──────────────────┘                │
 ```
 
 ### Component descriptions
@@ -55,7 +164,8 @@ Bareos (Backup Archiving REcovery Open Sourced) is a network backup solution for
 | **Storage Daemon** | `bareos-sd` | 9103 | Manages physical storage — disk files, tape drives. Receives data from FD, writes to storage devices. |
 | **File Daemon** | `bareos-fd` | 9102 | Runs on every client. Reads files from the client filesystem and sends them to the Storage Daemon. |
 | **Catalog** | MariaDB/MySQL | 3306 | Relational database storing metadata: what was backed up, when, where. NOT the backup data itself. |
-| **bconsole** | `bconsole` | — | CLI management console for the Director. |
+| **bconsole** | `bconsole` | — | CLI management console. Connects directly to the Director on port 9101. |
+| **Bareos WebUI** | `httpd` + `php-fpm` | 80/443 | Browser-based dashboard. Communicates with the Director over the same TCP 9101 bconsole protocol using a named Console resource. Installed separately — see Section 17. |
 
 ### Communication flow for a backup job
 
@@ -70,6 +180,20 @@ Bareos (Backup Archiving REcovery Open Sourced) is a network backup solution for
 8. Director writes job metadata to Catalog (MariaDB)
 9. Director sends email notification (if configured)
 ```
+
+### WebUI communication flow
+
+```
+1. Administrator opens browser → HTTPS to Apache (port 80/443)
+2. Apache passes request to PHP-FPM → bareos-webui PHP application
+3. bareos-webui opens TCP connection to Director on port 9101
+4. bareos-webui authenticates using a named Console resource (username + password)
+5. bareos-webui issues bconsole commands (status, list jobs, restore, etc.)
+6. Director responds with job data / file catalogue
+7. bareos-webui formats response as HTML → Apache → browser
+```
+
+> **Note:** The WebUI does **not** store backup data and does **not** require direct access to the Storage Daemon. It is purely a management interface to the Director. It can run on the same host as the Director or on a separate web server.
 
 ---
 
@@ -152,15 +276,23 @@ sudo mysql -u root -e "USE bareos; SHOW TABLES;"
 ### 2.5 Configure firewall
 
 ```bash
-# Open Bareos ports
+# Open Bareos daemon ports
 sudo firewall-cmd --permanent --add-port=9101/tcp   # Director
 sudo firewall-cmd --permanent --add-port=9102/tcp   # File Daemon
 sudo firewall-cmd --permanent --add-port=9103/tcp   # Storage Daemon
+
+# Open HTTP/HTTPS for Bareos WebUI (Apache)
+sudo firewall-cmd --permanent --add-service=http    # port 80
+sudo firewall-cmd --permanent --add-service=https   # port 443
+
 sudo firewall-cmd --reload
 
 # Verify
 sudo firewall-cmd --list-ports
+sudo firewall-cmd --list-services
 ```
+
+> **WebUI note:** If the WebUI runs on a separate host from the Director, that host only needs ports 80/443 open to browsers. It must be able to reach the Director on TCP 9101 — no extra firewall rule is needed on the Director host if both are on the same network.
 
 ### 2.6 Configure SELinux
 
@@ -177,9 +309,22 @@ sudo semanage fcontext -a -t bareos_store_t "/backup/bareos(/.*)?"
 sudo restorecon -Rv /backup/bareos
 ```
 
+**WebUI — additional SELinux boolean (required):**
+
+```bash
+# Allow Apache (httpd) to open network connections to the Director on TCP 9101
+sudo setsebool -P httpd_can_network_connect 1
+
+# Verify both booleans are on
+getsebool bareos_use_connection httpd_can_network_connect
+```
+
+> Without `httpd_can_network_connect`, Apache will receive a TCP connection refused from SELinux when bareos-webui tries to reach the Director. The symptom is a "Can't connect to Director" error in the browser with nothing obviously wrong in the Bareos logs.
+
 ### 2.7 Enable and start all Bareos services
 
 ```bash
+# Core Bareos daemons
 sudo systemctl enable --now bareos-dir
 sudo systemctl enable --now bareos-sd
 sudo systemctl enable --now bareos-fd
@@ -192,6 +337,25 @@ sudo journalctl -u bareos-dir -n 30
 sudo journalctl -u bareos-sd -n 30
 sudo journalctl -u bareos-fd -n 30
 ```
+
+**Bareos WebUI services** (if installing WebUI on this host — see Section 17 for full setup):
+
+```bash
+# PHP-FPM must start before Apache
+sudo systemctl enable --now php-fpm
+sudo systemctl enable --now httpd
+
+# Verify all five services are active
+sudo systemctl is-active bareos-dir bareos-sd bareos-fd php-fpm httpd
+```
+
+| Service | Purpose |
+|---------|---------|
+| `bareos-dir` | Director daemon — job scheduling and orchestration |
+| `bareos-sd` | Storage Daemon — writes backup data to disk/tape |
+| `bareos-fd` | File Daemon — reads client filesystems |
+| `php-fpm` | PHP FastCGI Process Manager — runs the WebUI PHP application |
+| `httpd` | Apache web server — serves the WebUI to browsers |
 
 ---
 
@@ -211,8 +375,9 @@ Bareos uses a directory-based configuration (since version 16+):
 │   │   └── MyCatalog.conf
 │   ├── client/               # Client (File Daemon) definitions
 │   │   └── bareos-fd.conf    # Local FD (created at install)
-│   ├── console/              # bconsole access definitions
-│   │   └── bareos-mon.conf
+│   ├── console/              # bconsole + WebUI access definitions
+│   │   ├── bareos-mon.conf   # Default monitor console
+│   │   └── admin.conf        # WebUI admin console (Section 17.6)
 │   ├── director/             # Director self-reference
 │   │   └── bareos-dir.conf
 │   ├── fileset/              # FileSets (what to back up)
@@ -230,8 +395,10 @@ Bareos uses a directory-based configuration (since version 16+):
 │   │   ├── Full.conf
 │   │   ├── Incremental.conf
 │   │   └── Differential.conf
-│   ├── profile/              # Director access profiles
-│   │   └── operator.conf
+│   ├── profile/              # Director access profiles (used by WebUI)
+│   │   ├── operator.conf     # Default operator profile
+│   │   ├── webui-admin.conf  # Full WebUI access (Section 17.7)
+│   │   └── webui-readonly.conf # Read-only WebUI profile
 │   ├── schedule/             # Schedule definitions
 │   │   └── WeeklyCycle.conf
 │   └── storage/              # Storage resource definitions
@@ -255,6 +422,16 @@ Bareos uses a directory-based configuration (since version 16+):
     │   └── bareos-dir.conf   # Authorises Director to connect
     └── messages/
         └── Standard.conf
+
+/etc/bareos-webui/            # WebUI application config (separate package)
+├── directors.ini             # Director connection list (Section 17.8)
+│                             #   [director-name]
+│                             #   enabled = yes
+│                             #   diraddress = 127.0.0.1
+│                             #   dirport = 9101
+│                             #   ...
+└── configuration.ini         # WebUI behaviour settings (Section 17.9)
+                              #   session lifetime, restore limits, debug, etc.
 ```
 
 ---

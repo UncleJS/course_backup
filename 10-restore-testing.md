@@ -14,6 +14,42 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. Why Test Restores?](#1-why-test-restores)
+- [2. Restore Procedure Checklists by Tool](#2-restore-procedure-checklists-by-tool)
+  - [2.1 tar restore checklist](#21-tar-restore-checklist)
+  - [2.2 rsync restore checklist](#22-rsync-restore-checklist)
+  - [2.3 xfsdump / xfsrestore checklist](#23-xfsdump--xfsrestore-checklist)
+  - [2.4 LVM snapshot restore checklist](#24-lvm-snapshot-restore-checklist)
+  - [2.5 Restic restore checklist](#25-restic-restore-checklist)
+  - [2.6 Bareos restore checklist](#26-bareos-restore-checklist)
+- [3. Bare-Metal Recovery Procedure](#3-bare-metal-recovery-procedure)
+  - [3.1 Prerequisites](#31-prerequisites)
+  - [3.2 Bare-metal recovery sequence](#32-bare-metal-recovery-sequence)
+  - [3.3 Disk UUID update procedure](#33-disk-uuid-update-procedure)
+- [4. Automated Restore Verification](#4-automated-restore-verification)
+  - [/usr/local/sbin/verify-backup.sh](#usrlocalsbinverify-backupsh)
+- [5. DR Drill Planning](#5-dr-drill-planning)
+  - [5.1 Drill types](#51-drill-types)
+  - [5.2 DR drill execution checklist](#52-dr-drill-execution-checklist)
+  - [5.3 Smoke test suite](#53-smoke-test-suite)
+- [6. Restore Performance Benchmarking](#6-restore-performance-benchmarking)
+  - [6.1 Benchmark template](#61-benchmark-template)
+  - [6.2 Throughput reference targets](#62-throughput-reference-targets)
+- [7. Common Restore Failures and Fixes](#7-common-restore-failures-and-fixes)
+- [Lab 10 — Restore Drills](#lab-10--restore-drills)
+  - [Prerequisites](#prerequisites)
+  - [Lab Part A — tar Restore Drill](#lab-part-a--tar-restore-drill)
+  - [Lab Part B — Restic Restore Drill](#lab-part-b--restic-restore-drill)
+  - [Lab Part C — Automated Verification Script](#lab-part-c--automated-verification-script)
+  - [Lab Part D — Restore Benchmark](#lab-part-d--restore-benchmark)
+  - [Lab Part E — Smoke Test](#lab-part-e--smoke-test)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. Why Test Restores?
 
 > *"A backup you have never restored from is not a backup — it is hope."*

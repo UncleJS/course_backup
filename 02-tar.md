@@ -13,6 +13,51 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. What is `tar`?](#1-what-is-tar)
+- [2. Basic Concepts](#2-basic-concepts)
+  - [Archive vs Compression](#archive-vs-compression)
+  - [Common File Extensions](#common-file-extensions)
+- [3. Compression Algorithm Comparison](#3-compression-algorithm-comparison)
+  - [Recommendation for RHEL 10 backups](#recommendation-for-rhel-10-backups)
+- [4. Essential `tar` Flags Reference](#4-essential-tar-flags-reference)
+- [5. Creating Full Backups](#5-creating-full-backups)
+  - [5.1 Basic full backup](#51-basic-full-backup)
+  - [5.2 Full backup with metadata preservation (recommended)](#52-full-backup-with-metadata-preservation-recommended)
+  - [5.3 Full system backup (multiple directories)](#53-full-system-backup-multiple-directories)
+  - [5.4 Using an exclude file](#54-using-an-exclude-file)
+- [6. Listing and Verifying Archives](#6-listing-and-verifying-archives)
+- [7. Extracting (Restoring) from Archives](#7-extracting-restoring-from-archives)
+  - [7.1 Extract entire archive to original location](#71-extract-entire-archive-to-original-location)
+  - [7.2 Extract to an alternate location](#72-extract-to-an-alternate-location)
+  - [7.3 Extract a single file](#73-extract-a-single-file)
+  - [7.4 Extract a single directory](#74-extract-a-single-directory)
+  - [7.5 Extract with verbose to see what's being restored](#75-extract-with-verbose-to-see-whats-being-restored)
+  - [7.6 Preview what would be extracted (dry run)](#76-preview-what-would-be-extracted-dry-run)
+- [8. Incremental Backups with `--listed-incremental`](#8-incremental-backups-with---listed-incremental)
+  - [How it works](#how-it-works)
+  - [8.1 Level-0: Full backup](#81-level-0-full-backup)
+  - [8.2 Level-1: Incremental backup](#82-level-1-incremental-backup)
+  - [8.3 Preserving snapshot state for a full cycle](#83-preserving-snapshot-state-for-a-full-cycle)
+  - [8.4 Restoring an incremental backup chain](#84-restoring-an-incremental-backup-chain)
+- [9. Handling Deleted Files in Incrementals](#9-handling-deleted-files-in-incrementals)
+- [10. Splitting Large Archives](#10-splitting-large-archives)
+- [11. Streaming tar Over SSH](#11-streaming-tar-over-ssh)
+- [12. Naming Conventions](#12-naming-conventions)
+- [13. Complete Backup Script](#13-complete-backup-script)
+  - [Configuration ###](#configuration-)
+- [Lab Exercises](#lab-exercises)
+  - [Lab 02-1: Create and verify a basic archive](#lab-02-1-create-and-verify-a-basic-archive)
+  - [Lab 02-2: SELinux label preservation](#lab-02-2-selinux-label-preservation)
+  - [Lab 02-3: Incremental backup cycle](#lab-02-3-incremental-backup-cycle)
+  - [Lab 02-4: Full restore from incremental chain](#lab-02-4-full-restore-from-incremental-chain)
+  - [Lab 02-5: Backup /etc with the complete production script](#lab-02-5-backup-etc-with-the-complete-production-script)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. What is `tar`?
 
 `tar` (Tape ARchive) is the oldest and most universally available backup utility on Unix/Linux systems. Despite its age, it remains one of the most powerful tools for:

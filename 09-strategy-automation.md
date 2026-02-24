@@ -15,6 +15,52 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. Strategy Before Tools](#1-strategy-before-tools)
+- [2. Backup Types — Refresh and Scheduling Implications](#2-backup-types--refresh-and-scheduling-implications)
+  - [2.1 Full backup](#21-full-backup)
+  - [2.2 Incremental backup](#22-incremental-backup)
+  - [2.3 Differential backup](#23-differential-backup)
+  - [2.4 Comparison table](#24-comparison-table)
+- [3. Rotation Schemes](#3-rotation-schemes)
+  - [3.1 Grandfather-Father-Son (GFS)](#31-grandfather-father-son-gfs)
+  - [3.2 Tower of Hanoi](#32-tower-of-hanoi)
+  - [3.3 Continuous Data Protection (CDP)](#33-continuous-data-protection-cdp)
+- [4. Retention Policies](#4-retention-policies)
+  - [4.1 Defining retention tiers](#41-defining-retention-tiers)
+  - [4.2 Compliance drivers](#42-compliance-drivers)
+  - [4.3 Restic retention policy (declarative example)](#43-restic-retention-policy-declarative-example)
+  - [4.4 Bareos retention (in Pool resource — from Module 07)](#44-bareos-retention-in-pool-resource--from-module-07)
+- [5. Scheduling: cron vs systemd Timers](#5-scheduling-cron-vs-systemd-timers)
+  - [5.1 Feature comparison](#51-feature-comparison)
+  - [5.2 cron scheduling syntax](#52-cron-scheduling-syntax)
+  - [5.3 systemd timer units](#53-systemd-timer-units)
+- [6. Pre- and Post-Backup Hooks](#6-pre--and-post-backup-hooks)
+  - [6.1 Common pre-backup hooks](#61-common-pre-backup-hooks)
+  - [6.2 Common post-backup hooks](#62-common-post-backup-hooks)
+  - [6.3 Hook framework in a wrapper script](#63-hook-framework-in-a-wrapper-script)
+- [7. Failure Alerting](#7-failure-alerting)
+  - [7.1 Email alerts via `mailx` / `sendmail`](#71-email-alerts-via-mailx--sendmail)
+  - [7.2 Syslog / journald logging](#72-syslog--journald-logging)
+  - [7.3 Webhook alert (Slack / generic HTTP)](#73-webhook-alert-slack--generic-http)
+  - [7.4 systemd OnFailure alert unit](#74-systemd-onfailure-alert-unit)
+- [8. Unified Backup Wrapper Script](#8-unified-backup-wrapper-script)
+  - [/usr/local/sbin/backup-master.sh](#usrlocalsbinbackup-mastersh)
+- [9. Log Rotation for Backup Logs](#9-log-rotation-for-backup-logs)
+- [10. Monitoring Backup Health — Quick Checks](#10-monitoring-backup-health--quick-checks)
+- [Lab 09 — Build a Full Backup Automation Stack](#lab-09--build-a-full-backup-automation-stack)
+  - [Prerequisites](#prerequisites)
+  - [Lab Part A — Deploy systemd Timer Pair](#lab-part-a--deploy-systemd-timer-pair)
+  - [Lab Part B — Test Manual Trigger](#lab-part-b--test-manual-trigger)
+  - [Lab Part C — Simulate Failure and Alert](#lab-part-c--simulate-failure-and-alert)
+  - [Lab Part D — Log Rotation](#lab-part-d--log-rotation)
+  - [Lab Part E — GFS Retention Simulation](#lab-part-e--gfs-retention-simulation)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. Strategy Before Tools
 
 Every tool covered in previous modules is a mechanism. A *strategy* is the policy that answers:

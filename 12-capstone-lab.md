@@ -25,6 +25,47 @@ Both VMs must be running before starting. See `README.md` for initial environmen
 
 ---
 
+## Table of Contents
+
+- [Pre-Lab Checklist](#pre-lab-checklist)
+- [Phase 1 — Baseline Documentation](#phase-1--baseline-documentation)
+  - [Step 1.1 — Capture system inventory](#step-11--capture-system-inventory)
+  - [Step 1.2 — Capture disk layout](#step-12--capture-disk-layout)
+  - [Step 1.3 — Capture service state](#step-13--capture-service-state)
+  - [Step 1.4 — Create canary files](#step-14--create-canary-files)
+- [Phase 2 — Create Comprehensive Backups](#phase-2--create-comprehensive-backups)
+  - [Step 2.1 — Initialize backup environment on server](#step-21--initialize-backup-environment-on-server)
+  - [Step 2.2 — Full tar backup](#step-22--full-tar-backup)
+  - [Step 2.3 — rsync snapshot backup](#step-23--rsync-snapshot-backup)
+  - [Step 2.4 — Restic backup](#step-24--restic-backup)
+  - [Step 2.5 — xfsdump of data volume (if present)](#step-25--xfsdump-of-data-volume-if-present)
+  - [Step 2.6 — Verify all backups are on the server](#step-26--verify-all-backups-are-on-the-server)
+  - [Step 2.7 — Copy timing file to server](#step-27--copy-timing-file-to-server)
+- [Phase 3 — Simulate Disk Failure](#phase-3--simulate-disk-failure)
+  - [Step 3.1 — Pre-destruction verification](#step-31--pre-destruction-verification)
+  - [Step 3.2 — Record the disaster timestamp](#step-32--record-the-disaster-timestamp)
+  - [Step 3.3 — Simulate disk failure (choose one method)](#step-33--simulate-disk-failure-choose-one-method)
+- [Phase 4 — Disaster Recovery Execution](#phase-4--disaster-recovery-execution)
+  - [Scenario A — Restore Using Restic (Recommended First Attempt)](#scenario-a--restore-using-restic-recommended-first-attempt)
+  - [Scenario B — Restore Using tar (Second Method)](#scenario-b--restore-using-tar-second-method)
+  - [Scenario C — Restore Using rsync (Third Method)](#scenario-c--restore-using-rsync-third-method)
+- [Phase 5 — Measurement and Analysis](#phase-5--measurement-and-analysis)
+  - [Step 5.1 — Compile timing data](#step-51--compile-timing-data)
+  - [Step 5.2 — RPO assessment](#step-52--rpo-assessment)
+  - [Step 5.3 — RTO comparison table](#step-53--rto-comparison-table)
+- [Phase 6 — Post-Mortem Report](#phase-6--post-mortem-report)
+- [Phase 7 — Advanced Capstone Extensions](#phase-7--advanced-capstone-extensions)
+  - [Extension A — Selective File Restore](#extension-a--selective-file-restore)
+  - [Extension B — Point-in-Time Recovery](#extension-b--point-in-time-recovery)
+  - [Extension C — Cross-Machine Restore](#extension-c--cross-machine-restore)
+  - [Extension D — Automated Recovery Runbook](#extension-d--automated-recovery-runbook)
+- [Capstone Completion Criteria](#capstone-completion-criteria)
+- [Appendix A — Quick Reference: Restore Commands](#appendix-a--quick-reference-restore-commands)
+- [Appendix B — Emergency Contacts Template](#appendix-b--emergency-contacts-template)
+- [Appendix C — Course Completion Checklist](#appendix-c--course-completion-checklist)
+
+---
+
 ## Pre-Lab Checklist
 
 Before beginning the capstone:

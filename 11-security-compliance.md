@@ -15,6 +15,61 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. Backup Threat Model](#1-backup-threat-model)
+- [2. GPG Encryption for tar Backups](#2-gpg-encryption-for-tar-backups)
+  - [2.1 Key generation](#21-key-generation)
+  - [2.2 Encrypt a tar archive with GPG](#22-encrypt-a-tar-archive-with-gpg)
+  - [2.3 Decrypt and restore](#23-decrypt-and-restore)
+  - [2.4 GPG-encrypted backup script](#24-gpg-encrypted-backup-script)
+- [3. Restic's Built-in Encryption](#3-restics-built-in-encryption)
+  - [3.1 How Restic encryption works](#31-how-restic-encryption-works)
+  - [3.2 Key/password management](#32-keypassword-management)
+  - [3.3 Verify encryption on disk](#33-verify-encryption-on-disk)
+- [4. Securing rsync with Restricted SSH](#4-securing-rsync-with-restricted-ssh)
+  - [4.1 Dedicated backup SSH key](#41-dedicated-backup-ssh-key)
+  - [4.2 Restricted `authorized_keys` on backup server](#42-restricted-authorized_keys-on-backup-server)
+  - [4.3 rrsync wrapper (more flexible restriction)](#43-rrsync-wrapper-more-flexible-restriction)
+  - [4.4 SSH server hardening for backup account](#44-ssh-server-hardening-for-backup-account)
+- [5. File System Permissions for Backup Storage](#5-file-system-permissions-for-backup-storage)
+  - [5.1 Backup directory structure with restrictive permissions](#51-backup-directory-structure-with-restrictive-permissions)
+  - [5.2 SELinux context for backup directories](#52-selinux-context-for-backup-directories)
+  - [5.3 Immutable flag to prevent ransomware deletion](#53-immutable-flag-to-prevent-ransomware-deletion)
+- [6. Audit Logging for Backup Operations](#6-audit-logging-for-backup-operations)
+  - [6.1 auditd rules for backup paths](#61-auditd-rules-for-backup-paths)
+  - [6.2 Query audit logs](#62-query-audit-logs)
+  - [6.3 Centralised syslog forwarding](#63-centralised-syslog-forwarding)
+- [7. Offsite and Cloud Strategy](#7-offsite-and-cloud-strategy)
+  - [7.1 3-2-1 rule reminder](#71-3-2-1-rule-reminder)
+  - [7.2 Restic + AWS S3 (encrypted offsite)](#72-restic--aws-s3-encrypted-offsite)
+  - [7.3 Restic + self-hosted MinIO (LAN or DMZ)](#73-restic--self-hosted-minio-lan-or-dmz)
+  - [7.4 rsync over SSH to offsite server](#74-rsync-over-ssh-to-offsite-server)
+- [8. Sensitive Data and GDPR/Compliance Considerations](#8-sensitive-data-and-gdprcompliance-considerations)
+  - [8.1 What the GDPR says about backups](#81-what-the-gdpr-says-about-backups)
+  - [8.2 Practical GDPR backup controls](#82-practical-gdpr-backup-controls)
+  - [8.3 Scanning for sensitive data before backup (optional)](#83-scanning-for-sensitive-data-before-backup-optional)
+- [9. Key Escrow and Disaster Key Recovery](#9-key-escrow-and-disaster-key-recovery)
+  - [9.1 Key storage locations](#91-key-storage-locations)
+  - [9.2 GPG key escrow](#92-gpg-key-escrow)
+  - [9.3 Restic key recovery test](#93-restic-key-recovery-test)
+- [10. Network Encryption in Transit](#10-network-encryption-in-transit)
+  - [10.1 Verify SSH host key fingerprint before first connection](#101-verify-ssh-host-key-fingerprint-before-first-connection)
+  - [10.2 Enforce StrictHostKeyChecking](#102-enforce-stricthostkeychecking)
+  - [10.3 TLS for Restic REST server backend](#103-tls-for-restic-rest-server-backend)
+- [11. Compliance Hardening Checklist](#11-compliance-hardening-checklist)
+- [Lab 11 — Backup Security Hardening](#lab-11--backup-security-hardening)
+  - [Prerequisites](#prerequisites)
+  - [Lab Part A — GPG Encrypt a tar Archive](#lab-part-a--gpg-encrypt-a-tar-archive)
+  - [Lab Part B — Harden Restic Password Storage](#lab-part-b--harden-restic-password-storage)
+  - [Lab Part C — auditd Rules for Backup Paths](#lab-part-c--auditd-rules-for-backup-paths)
+  - [Lab Part D — Immutable Backup Directory](#lab-part-d--immutable-backup-directory)
+  - [Lab Part E — Compliance Self-Assessment](#lab-part-e--compliance-self-assessment)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. Backup Threat Model
 
 Before implementing controls, understand what you are protecting against:

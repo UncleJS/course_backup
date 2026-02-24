@@ -12,6 +12,45 @@ By the end of this module you will be able to:
 
 ---
 
+## Table of Contents
+
+- [1. The Filesystem Hierarchy Standard (FHS)](#1-the-filesystem-hierarchy-standard-fhs)
+  - [RHEL 10 Specific Notes](#rhel-10-specific-notes)
+- [2. Directory-by-Directory Reference](#2-directory-by-directory-reference)
+  - [2.1 `/etc` — System Configuration](#21-etc--system-configuration)
+  - [2.2 `/home` — User Home Directories](#22-home--user-home-directories)
+  - [2.3 `/root` — Root Home Directory](#23-root--root-home-directory)
+  - [2.4 `/var` — Variable Data](#24-var--variable-data)
+  - [2.5 `/boot` — Boot Files](#25-boot--boot-files)
+  - [2.6 `/srv` — Service Data](#26-srv--service-data)
+  - [2.7 `/opt` — Optional Software](#27-opt--optional-software)
+  - [2.8 `/usr` — Installed Programs & Libraries](#28-usr--installed-programs--libraries)
+  - [2.9 `/tmp` and `/var/tmp`](#29-tmp-and-vartmp)
+  - [2.10 Paths to ALWAYS EXCLUDE](#210-paths-to-always-exclude)
+  - [2.11 RHEL 10 Specific: Podman Container Storage](#211-rhel-10-specific-podman-container-storage)
+  - [2.12 RHEL 10 Specific: SELinux File Contexts](#212-rhel-10-specific-selinux-file-contexts)
+- [3. Backup Inclusion & Exclusion Reference Table](#3-backup-inclusion--exclusion-reference-table)
+  - [Must Include](#must-include)
+  - [Usually Include](#usually-include)
+  - [Exclude](#exclude)
+- [4. Calculating Backup Size](#4-calculating-backup-size)
+- [5. Special Considerations by Server Role](#5-special-considerations-by-server-role)
+  - [Web Server (Apache / Nginx)](#web-server-apache--nginx)
+  - [Database Server (MariaDB)](#database-server-mariadb)
+  - [Mail Server (Postfix / Dovecot)](#mail-server-postfix--dovecot)
+  - [KVM Hypervisor](#kvm-hypervisor)
+  - [Container Host (Podman)](#container-host-podman)
+- [6. Creating Your Backup Manifest](#6-creating-your-backup-manifest)
+- [Lab Exercises](#lab-exercises)
+  - [Lab 01-1: Audit your system's backup footprint](#lab-01-1-audit-your-systems-backup-footprint)
+  - [Lab 01-2: Verify SELinux label preservation](#lab-01-2-verify-selinux-label-preservation)
+  - [Lab 01-3: Build your system's backup manifest](#lab-01-3-build-your-systems-backup-manifest)
+  - [Lab 01-4: Identify exclusion violations](#lab-01-4-identify-exclusion-violations)
+- [Review Questions](#review-questions)
+- [Answers to Review Questions](#answers-to-review-questions)
+
+---
+
 ## 1. The Filesystem Hierarchy Standard (FHS)
 
 RHEL 10 follows the FHS — a standard layout that defines where different types of files live. Understanding this layout is essential to knowing *what* to back up.
