@@ -86,6 +86,8 @@ Amanda (Advanced Maryland Automatic Network Disk Archiver) is an open-source bac
 | Complexity | Medium | High |
 | Best for | Simpler networks, tape environments | Large environments, enterprise needs |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. Architecture
@@ -110,6 +112,8 @@ Amanda (Advanced Maryland Automatic Network Disk Archiver) is an open-source bac
 ```
 
 Amanda uses SSH to trigger `amandad` on clients. No permanent daemon runs on clients — Amanda connects over SSH, starts `amandad` which performs the backup, and streams data back to the server.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -207,6 +211,8 @@ sudo chmod 600 /var/lib/amanda/.ssh/authorized_keys
 sudo chown amandabackup:amandabackup /var/lib/amanda/.ssh/authorized_keys
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 4. Amanda Configuration Directory
@@ -236,6 +242,8 @@ sudo chown -R amandabackup:disk /etc/amanda/DailySet
 # Create state directories
 sudo -u amandabackup mkdir -p /var/lib/amanda/DailySet/{curinfo,index}
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -277,6 +285,8 @@ rawtapedev "/backup/vtl/DailySet"
 runtapes 1
 EOF
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -427,6 +437,8 @@ sudo chown amandabackup:disk /var/log/amanda/DailySet
 | `compress client fast` | Compress on client with fast algorithm |
 | `index yes` | Create per-file index (required for `amrecover`) |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 7. disklist — Defining What to Back Up
@@ -484,6 +496,8 @@ backup-server    /nfs/share    {
 }
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 8. Initialise Amanda
@@ -498,6 +512,8 @@ for i in $(seq -w 01 10); do
   sudo -u amandabackup amlabel DailySet "DailySet-${i}" slot ${i}
 done
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -542,6 +558,8 @@ Amanda Client Host Check
 (brought to you by Amanda version 3.5.x)
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 10. amdump — Running Backups
@@ -571,6 +589,8 @@ sudo -u amandabackup amadmin DailySet estimate
 7. Builds file indexes (if `index yes`)
 8. Sends report email
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 11. Amanda Report
@@ -596,6 +616,8 @@ backup-server   /etc              1       8192    3120    38.1%  DailySet-01
 backup-server   /home             0      51200   18432    36.0%  DailySet-01
 backup-client-1 /etc              1       6144    2304    37.5%  DailySet-01
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -627,6 +649,8 @@ sudo -u amandabackup amadmin DailySet delete backup-server /etc
 # Reuse a tape now (don't wait for tapecycle)
 sudo -u amandabackup amadmin DailySet reuse DailySet-05
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -699,6 +723,8 @@ sudo -u amandabackup amrecover DailySet
 # amrecover> quit
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 14. Automating Amanda with Cron
@@ -729,6 +755,8 @@ sudo -u amandabackup crontab -e
 0 3 1 * * find /var/log/amanda/DailySet -name "log.*" -mtime +90 -delete
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 15. Multiple Configuration Sets
@@ -747,6 +775,8 @@ Amanda supports multiple independent config sets. Create one per backup schedule
 ```
 
 Each set has its own `amanda.conf`, `disklist`, VTL, and cron entry.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -835,6 +865,8 @@ EOF
 sudo -u amandabackup crontab -l
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -850,6 +882,8 @@ sudo -u amandabackup crontab -l
 9. What does `amadmin DailySet force backup-server /etc` do?
 10. How do you view the report from last night's Amanda backup?
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Answers to Review Questions
@@ -864,6 +898,8 @@ sudo -u amandabackup crontab -l
 8. A **VTL (Virtual Tape Library)** is a directory on disk that Amanda treats as a tape library. Each subdirectory (`slot01`, `slot02`...) is a virtual tape slot. This allows Amanda to be used with disk storage while keeping its tape-based design and rotation logic.
 9. `amadmin DailySet force backup-server /etc` marks that DLE as requiring a **Full backup on the next amdump run**, overriding Amanda's normal scheduling calculation. Useful after a system change, restore, or when you know the incremental chain is broken.
 10. `sudo -u amandabackup amreport DailySet` — shows the report for the most recent backup run. Older reports can be viewed with `--log=/var/log/amanda/DailySet/log.YYYYMMDD`.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

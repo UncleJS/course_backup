@@ -195,6 +195,8 @@ Bareos (Backup Archiving REcovery Open Sourced) is a network backup solution for
 
 > **Note:** The WebUI does **not** store backup data and does **not** require direct access to the Storage Daemon. It is purely a management interface to the Director. It can run on the same host as the Director or on a separate web server.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. Installation
@@ -357,6 +359,8 @@ sudo systemctl is-active bareos-dir bareos-sd bareos-fd php-fpm httpd
 | `php-fpm` | PHP FastCGI Process Manager — runs the WebUI PHP application |
 | `httpd` | Apache web server — serves the WebUI to browsers |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 3. Configuration Directory Structure
@@ -433,6 +437,8 @@ Bareos uses a directory-based configuration (since version 16+):
 └── configuration.ini         # WebUI behaviour settings (Section 17.9)
                               #   session lifetime, restore limits, debug, etc.
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -957,6 +963,8 @@ Job {
 EOF
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 5. Storage Daemon Configuration
@@ -1063,6 +1071,8 @@ sudo mkdir -p /backup/bareos-incr
 sudo chown bareos:bareos /backup/bareos-incr
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 6. File Daemon Configuration
@@ -1121,6 +1131,8 @@ Director {
 EOF
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 7. Setting Passwords
@@ -1149,6 +1161,8 @@ echo "Console password:  $CONSOLE_PASSWORD"
 - SD password: Director's Storage resource + SD's Director resource
 - FD password: Director's Client resource + FD's Director resource
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 8. bconsole Configuration
@@ -1166,6 +1180,8 @@ Director {
 }
 EOF
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -1190,6 +1206,8 @@ sudo systemctl status bareos-dir bareos-sd bareos-fd
 # Watch logs for errors
 sudo journalctl -fu bareos-dir
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -1366,6 +1384,8 @@ sudo bconsole
 *show all
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 11. The Interactive Restore Wizard
@@ -1467,6 +1487,8 @@ Enter date/time in the form YYYY-MM-DD HH:MM:SS: 2026-02-18 12:00:00
 *restore client=bareos-fd where=/ all yes
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 12. Adding a Remote Client
@@ -1559,6 +1581,8 @@ sudo bconsole
 *status client=backup-client-1
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 13. Database Maintenance
@@ -1627,6 +1651,8 @@ sudo bconsole
 # Prune expired volumes
 *prune volumes all yes
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -1745,6 +1771,8 @@ sudo bconsole
 # Look for: "TLS: enabled"
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 15. Monitoring and Alerting
@@ -1800,6 +1828,8 @@ sudo bconsole
 *list jobs status=W
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 16. bextract — Restore Without a Running Director
@@ -1833,6 +1863,8 @@ sudo bextract \
 ```
 
 **Note:** `bextract` needs to know the storage device path. For disk-based storage (`File` device), the archive device is the directory configured in the SD device resource (e.g., `/backup/bareos`).
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -2465,6 +2497,8 @@ After login you land on the **Dashboard** showing:
 5. Click **Restore**
 6. Monitor at **Jobs → Running**
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Lab Exercises
@@ -2727,6 +2761,8 @@ Verify on the server:
 cat /tmp/webui-restore/etc/hostname
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -2748,6 +2784,8 @@ cat /tmp/webui-restore/etc/hostname
 15. What is the difference between `prune` (bconsole) and `purge volume`?
 16. Why is `setsebool -P httpd_can_network_connect on` required when running the Bareos WebUI on RHEL 10?
 17. What is the Bvfs cache, and what happens if it is not updated after large backup jobs?
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -2772,6 +2810,8 @@ cat /tmp/webui-restore/etc/hostname
 16. On RHEL 10 with SELinux enforcing, the `httpd_t` domain (Apache) is not allowed to make outbound network connections by default. The WebUI must connect to the Director on TCP port 9101. Without the boolean, every login attempt is silently blocked by SELinux, and `ausearch -m avc` will show denied `connect` calls from `httpd_t` to port 9101. The `-P` flag makes the boolean persistent across reboots.
 
 17. The **Bvfs (Bareos Virtual Filesystem) cache** is a pre-computed index of the directory and file metadata from the catalog, used by the WebUI restore module to render the interactive file-tree browser. If the cache is not updated after a large backup job, the WebUI must build it on demand when a user opens the restore tree — which can time out for jobs with millions of files. The fix is to add a `RunScript { Console = ".bvfs_update jobid=%i" RunsWhen = After RunsOnClient = No }` directive to each Job or JobDef, so the cache is refreshed immediately after every backup completes.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

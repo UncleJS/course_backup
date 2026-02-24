@@ -73,6 +73,8 @@ The most common backup failure modes are:
 - Monthly (automated) — file-level integrity check
 - Quarterly — full bare-metal or VM-level restore drill
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. Restore Procedure Checklists by Tool
@@ -122,6 +124,8 @@ tar -xzf /mnt/backup/etc-inc-20260219.tar.gz    -C /restore/staging/ \
 # ... continue through the chain to the desired date
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.2 rsync restore checklist
@@ -162,6 +166,8 @@ systemctl start nginx
 systemctl status nginx
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.3 xfsdump / xfsrestore checklist
@@ -199,6 +205,8 @@ xfsrestore -f /mnt/backup/xfsdump/data.level0 \
 # Verify XFS filesystem integrity (read-only)
 xfs_repair -n /dev/backupvg/data
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -241,6 +249,8 @@ mount /dev/backupvg/data /mnt/data
 # Remove snapshot without merging
 lvremove -f /dev/backupvg/data_snap
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -298,6 +308,8 @@ ls /mnt/restic_mount/snapshots/latest/
 fusermount -u /mnt/restic_mount
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.6 Bareos restore checklist
@@ -324,6 +336,8 @@ fusermount -u /mnt/restic_mount
 *list joblog jobid=42
 *quit
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -419,6 +433,8 @@ sed -i 's/UUID=old-boot-uuid/UUID=new-boot-uuid/' /etc/fstab
 # Update GRUB config
 grub2-mkconfig -o /boot/grub2/grub.cfg
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -516,6 +532,8 @@ EOF
 # ExecStartPost=/usr/local/sbin/verify-backup.sh
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 5. DR Drill Planning
@@ -601,6 +619,8 @@ echo "Results: ${PASS} passed, ${FAIL} failed"
 [[ "$FAIL" -eq 0 ]] && exit 0 || exit 1
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 6. Restore Performance Benchmarking
@@ -666,6 +686,8 @@ If measured throughput is significantly below these ranges, investigate:
 - Network saturation: `iperf3` between backup client and server
 - Disk health: `smartctl -t short /dev/sda`
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 7. Common Restore Failures and Fixes
@@ -681,6 +703,8 @@ If measured throughput is significantly below these ranges, investigate:
 | `grub2: no such device` after bare-metal | UUID changed after reformat | Update `/etc/fstab` and rerun `grub2-mkconfig` |
 | MariaDB won't start after restore | InnoDB log file mismatch | Remove `ib_logfile*`, let MariaDB recreate on start |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Lab 10 — Restore Drills
@@ -694,6 +718,8 @@ If measured throughput is significantly below these ranges, investigate:
 ```bash
 [server]# mkdir -p /restore/staging
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -729,6 +755,8 @@ diff /etc/hostname /restore/staging/etc/hostname && echo "hostname: OK"
 diff /etc/fstab    /restore/staging/etc/fstab    && echo "fstab: OK"
 grep -q "^root:" /restore/staging/etc/passwd     && echo "passwd: OK"
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -769,6 +797,8 @@ ls /mnt/restic_browse/snapshots/latest/etc/
 fusermount -u /mnt/restic_browse
 wait $RESTIC_PID 2>/dev/null || true
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -812,6 +842,8 @@ chmod 700 /usr/local/sbin/verify-backup.sh
 [server]# /usr/local/sbin/verify-backup.sh
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### Lab Part D — Restore Benchmark
@@ -833,6 +865,8 @@ rm -rf /tmp/restore-bench-*
 ```
 
 **Step 2:** Compare to the reference table in Section 6.2.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -863,6 +897,8 @@ chmod 700 /usr/local/sbin/smoke-test.sh
 /usr/local/sbin/smoke-test.sh
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -875,6 +911,8 @@ chmod 700 /usr/local/sbin/smoke-test.sh
 6. Why should you always restore to a staging directory before touching live data?
 7. What two commands rebuild the bootloader during a bare-metal restore?
 8. Name three metrics that should be recorded during a DR drill to assess RTO.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

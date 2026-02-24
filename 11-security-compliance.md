@@ -85,6 +85,8 @@ Before implementing controls, understand what you are protecting against:
 | Man-in-the-middle on transfer | Backup traffic intercepted | TLS/SSH for all transfers; verify fingerprints |
 | Credential leakage | `.env` file or script contains passwords in clear text | Secrets manager; password files with `chmod 600` |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. GPG Encryption for tar Backups
@@ -184,6 +186,8 @@ backup_encrypt "home"   /home
 backup_encrypt "varlib" /var/lib
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 3. Restic's Built-in Encryption
@@ -237,6 +241,8 @@ ls -lh /mnt/backup/restic/data/
 xxd /mnt/backup/restic/data/ab/abcd1234... | head
 # Output: binary garbage — encrypted content
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -297,6 +303,8 @@ EOF
 sshd -t && systemctl reload sshd
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 5. File System Permissions for Backup Storage
@@ -353,6 +361,8 @@ lsattr -d /mnt/backup/restic/data/
 # Remove immutable flag (requires root)
 chattr -i /mnt/backup/
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -425,6 +435,8 @@ EOF
 
 systemctl restart rsyslog
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -536,6 +548,8 @@ ssh -i /root/.ssh/backup_ed25519 backupuser@offsite.example.com \
     "restic --repo /remote-backup/restic --password-file /etc/backup/restic-password check"
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 8. Sensitive Data and GDPR/Compliance Considerations
@@ -585,6 +599,8 @@ grep -rn "password\s*=\s*['\"]" /etc/ 2>/dev/null | grep -v "^Binary"
 # Find world-readable files in /etc that shouldn't be
 find /etc -maxdepth 2 -perm /o+r -name "*.conf" -exec ls -la {} \;
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -636,6 +652,8 @@ restic --repo /mnt/backup/restic \
     --password-command "cat /dev/stdin" \
     snapshots
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -690,6 +708,8 @@ export RESTIC_PASSWORD_FILE="/etc/backup/restic-password"
 restic snapshots
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 11. Compliance Hardening Checklist
@@ -736,6 +756,8 @@ TESTING
 [ ] Offsite copy restore tested annually
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Lab 11 — Backup Security Hardening
@@ -745,6 +767,8 @@ TESTING
 - Module 06 (Restic) completed
 - GPG installed: `dnf install -y gnupg2`
 - Working restic repository at `/mnt/backup/restic`
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -789,6 +813,8 @@ file /mnt/backup/lab11-test.tar.gz.gpg
 diff /etc/hostname /restore/staging/etc/hostname && echo "GPG restore: OK"
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### Lab Part B — Harden Restic Password Storage
@@ -831,6 +857,8 @@ restic --repo /mnt/backup/restic \
 echo "Recovery key: OK"
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### Lab Part C — auditd Rules for Backup Paths
@@ -870,6 +898,8 @@ ausearch -k backup_secrets --start recent | tail -20
 ausearch -k backup_exec --start recent | tail -10
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### Lab Part D — Immutable Backup Directory
@@ -896,6 +926,8 @@ rm /mnt/backup/archive/testfile 2>&1 | grep -q "Operation not permitted" \
 chattr -a /mnt/backup/archive
 rm -f /mnt/backup/archive/testfile
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -933,6 +965,8 @@ echo ""
 echo "Self-assessment: ${PASS} checks passed, ${FAIL} checks failed"
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -945,6 +979,8 @@ echo "Self-assessment: ${PASS} checks passed, ${FAIL} checks failed"
 6. What is the 3-2-1-1-0 rule and what does each number represent?
 7. Why should the GPG secret key never be stored on the backup server?
 8. What `auditd` key name convention was used in the lab, and what benefit does naming keys provide?
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

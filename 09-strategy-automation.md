@@ -78,6 +78,8 @@ Every tool covered in previous modules is a mechanism. A *strategy* is the polic
 
 Writing these answers down *before* configuring tools prevents the most common failure mode: backups that run but are never tested and fail silently for months.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. Backup Types — Refresh and Scheduling Implications
@@ -111,6 +113,8 @@ Writing these answers down *before* configuring tools prevents the most common f
 | Incremental | Low/day | Fast | Slow | Full + all incrementals |
 | Differential | Medium/day | Medium | Medium | Full + latest diff |
 | Synthetic full | Medium | Medium | Fast | Built from previous backups |
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -170,6 +174,8 @@ Retention:  1d  2d  1d  4d  1d  2d  1d  8d
 - Very low RPO (seconds to minutes)
 - High storage cost; requires dedicated infrastructure
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 4. Retention Policies
@@ -212,6 +218,8 @@ restic forget \
 VolumeRetention = 30 days
 AutoPrune = yes
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -380,6 +388,8 @@ systemctl enable --now backup-full.timer
 systemctl list-timers --all | grep backup
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 6. Pre- and Post-Backup Hooks
@@ -438,6 +448,8 @@ run_with_hooks() {
     log "=== $job_name complete ==="
 }
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -548,6 +560,8 @@ Then in each backup `.service` file add:
 [Unit]
 OnFailure=backup-alert@%n.service
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -810,6 +824,8 @@ echo "your-strong-password-here" > /etc/backup/restic-password
 chmod 600 /etc/backup/restic-password
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 9. Log Rotation for Backup Logs
@@ -827,6 +843,8 @@ cat > /etc/logrotate.d/backup << 'EOF'
 }
 EOF
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -855,6 +873,8 @@ restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
     check --read-data-subset=5%
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Lab 09 — Build a Full Backup Automation Stack
@@ -864,6 +884,8 @@ restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
 - Modules 02–06 completed
 - `/dev/sdb` partitioned with `backupvg` VG (from Module 05)
 - Restic repo initialised (from Module 06)
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -962,6 +984,8 @@ Mon 2026-02-23 02:00:00 UTC  ...  backup-incremental.timer  backup-incremental.s
 Sun 2026-03-01 01:00:00 UTC  ...  backup-full.timer         backup-full.service
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### Lab Part B — Test Manual Trigger
@@ -978,6 +1002,8 @@ journalctl -u backup-incremental.service -f
 # Confirm it completed
 systemctl status backup-incremental.service
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -1003,6 +1029,8 @@ grep -i "FAIL" /var/log/backup/*.log | tail -5
 systemctl status backup-incremental.service
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### Lab Part D — Log Rotation
@@ -1026,6 +1054,8 @@ logrotate -d /etc/logrotate.d/backup
 logrotate -f /etc/logrotate.d/backup
 ls -lh /var/log/backup/
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -1059,6 +1089,8 @@ restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
     snapshots --tag lab-gfs
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -1071,6 +1103,8 @@ restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
 6. Name three channels through which backup failures should be reported.
 7. How does `CPUQuota=50%` in a systemd service unit benefit a production server during backup?
 8. What command shows all systemd timers and their next trigger time?
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

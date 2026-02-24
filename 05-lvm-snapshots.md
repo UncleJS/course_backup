@@ -73,6 +73,8 @@ Timeline:
 
 The backup sees a consistent state as of 08:00:00. The live system never pauses.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. How LVM Snapshots Work (Copy-on-Write)
@@ -97,6 +99,8 @@ Mount SnapLV:         Reads A=1, B=2, C=3  ← original state
 ```
 
 **Key implication:** The snapshot occupies only the space of blocks that have changed since the snapshot was taken. For a backup that runs for 30 minutes, you only need enough snapshot space to hold the blocks changed in that 30-minute window.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -131,6 +135,8 @@ vgs --units g
 ```
 
 You need at least **10–20% of the source LV size** as free space for the snapshot. More is better if the system is write-heavy.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -198,6 +204,8 @@ sudo lvremove -f /dev/rhel/root_snap
 sudo lvs
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 5. Thin Snapshots
@@ -263,6 +271,8 @@ activation {
 EOF
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 6. Snapshot Overflow — The Critical Risk
@@ -300,6 +310,8 @@ sudo lvextend -L +2G /dev/rhel/root_snap
 # Or resize to a specific size
 sudo lvextend -L 8G /dev/rhel/root_snap
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -362,6 +374,8 @@ sudo tar -czpf /backup/etc-snap-$(date +%Y%m%d).tar.gz \
 sudo umount /mnt/etc_snap
 sudo lvremove -f /dev/rhel/etc_snap
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -458,6 +472,8 @@ SCRIPT
 sudo chmod +x /usr/local/bin/lvm-snapshot-backup.sh
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 9. Database-Consistent Snapshots
@@ -515,6 +531,8 @@ sudo umount /mnt/pg_snap
 sudo lvremove -f /dev/rhel/pg_snap
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 10. Restoring from an LVM Snapshot (Direct Method)
@@ -534,6 +552,8 @@ sudo rsync -aAXh /mnt/root_snap/etc/nginx/ /etc/nginx/
 sudo lvconvert --merge /dev/rhel/root_snap
 # This requires rebooting — the merge happens on next boot
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -620,6 +640,8 @@ sudo /usr/local/bin/lvm-snapshot-backup.sh
 sudo cat /var/log/lvm-snapshot-backup.log
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -635,6 +657,8 @@ sudo cat /var/log/lvm-snapshot-backup.log
 9. How do you ensure a MariaDB database is consistent before taking an LVM snapshot?
 10. What command creates a 5GB snapshot of `/dev/rhel/home` named `home_backup`?
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Answers to Review Questions
@@ -649,6 +673,8 @@ sudo cat /var/log/lvm-snapshot-backup.log
 8. `lvconvert --merge SNAP_LV` marks the snapshot for merging back into the origin LV. On the **next reboot**, the origin LV is replaced entirely with the snapshot's content. Used for rolling back a volume to a previous state. Not for partial restores — it replaces all data.
 9. Issue `FLUSH TABLES WITH READ LOCK;` in MariaDB to stop writes and flush dirty pages to disk. Immediately create the LVM snapshot, then release the lock with `UNLOCK TABLES;`. The lock window is only as long as the `lvcreate` command takes (typically under a second).
 10. `sudo lvcreate -L 5G -s -n home_backup /dev/rhel/home`
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

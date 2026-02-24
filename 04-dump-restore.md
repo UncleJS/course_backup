@@ -72,6 +72,8 @@ File-level tools (tar, rsync) operate on the VFS layer — they open files throu
 | Incremental | Via snapshot file | Native level 0-9 system |
 | Restore granularity | File/dir | File/dir or full FS |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. RHEL 10 Default Filesystem: XFS
@@ -90,6 +92,8 @@ lsblk -f
 # Check if /boot is ext4 or xfs
 df -T /boot
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -220,6 +224,8 @@ sudo restore -xf /backup/boot-level0-20260224.dump ./grub2/grub.cfg
 cd /
 sudo restore -rf /backup/boot-level0-20260224.dump
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -352,6 +358,8 @@ sudo xfsdump -l 0 \
   / | ssh backup-server "cat > /backup/root-level0-$(date +%Y%m%d).xfsdump"
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 5. Restoring with `xfsrestore`
@@ -423,6 +431,8 @@ sudo xfsrestore -i -f /backup/root-level0-20260224.xfsdump /restore/
 | `-v VERBOSITY` | Verbosity level |
 | `-p SECS` | Progress interval |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 6. XFS Freeze for Consistent Live Backups
@@ -441,6 +451,8 @@ sudo xfs_freeze -u /home
 ```
 
 **Important:** Keep the freeze window as short as possible. Applications waiting on I/O will block during the freeze.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -470,6 +482,8 @@ sudo xfs_freeze -u /home
 | Space-efficient incrementals (hardlinks) | `rsync --link-dest` |
 | Encrypted remote backups | `restic` |
 | Enterprise scheduling and catalog | `bareos` |
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -534,6 +548,8 @@ SCRIPT
 
 sudo chmod +x /usr/local/bin/xfsdump-backup.sh
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -624,6 +640,8 @@ sudo cat /var/log/xfsdump-backup.log
 sudo xfsdump -I
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -639,6 +657,8 @@ sudo xfsdump -I
 9. How do you estimate the size of an xfsdump before running it?
 10. What command lets you browse the contents of an xfsdump archive interactively?
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Answers to Review Questions
@@ -653,6 +673,8 @@ sudo xfsdump -I
 8. `xfsrestore -s PATH` — restores only the subtree starting at `PATH` relative to the filesystem root.
 9. `xfsdump -e -l LEVEL -f /dev/null MOUNTPOINT` — the `-e` flag estimates the dump size without writing any data.
 10. `xfsrestore -i -f DUMPFILE DESTDIR` — launches interactive mode where you can browse, select, and extract files.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

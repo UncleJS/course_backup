@@ -75,6 +75,8 @@ sudo dnf install -y rsync
 rsync --version
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. rsync Flag Reference
@@ -148,6 +150,8 @@ rsync --version
 | `--filter=RULE` | Fine-grained filter rules |
 | `-e` / `--rsh=COMMAND` | Specify remote shell (usually `ssh`) |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 3. Trailing Slash Gotcha
@@ -170,6 +174,8 @@ rsync -av /etc/ /backup/etc/
 
 Use the trailing slash when you want to keep the same structure. Without it when you want to recreate the directory itself under the destination.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 4. Local Backups
@@ -189,6 +195,8 @@ sudo rsync -aAXvn --delete --numeric-ids /etc/ /backup/etc/
 ```bash
 sudo rsync -aAXvh --delete --numeric-ids --stats /etc/ /backup/etc/
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -227,6 +235,8 @@ sudo rsync -aAXvz --delete --numeric-ids \
 | **Pull (server → client)** | Centralized control, client cannot delete backups | Server needs read access to all clients |
 
 **Security recommendation:** Pull model. The backup server has read-only access to clients. A compromised client cannot delete its own backups.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -271,6 +281,8 @@ sudo chmod +x /usr/local/bin/rrsync
 # In authorized_keys on the client:
 # command="/usr/local/bin/rrsync -ro /",no-port-forwarding,...
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -320,6 +332,8 @@ sudo rsync -aAXv --delete --numeric-ids \
 ### What if yesterday's snapshot doesn't exist?
 
 `rsync` performs a full copy automatically when `--link-dest` points to a non-existent directory. This makes the script safe to run even on the first run.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -419,6 +433,8 @@ SCRIPT
 sudo chmod +x /usr/local/bin/rsync-snapshot.sh
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 9. Bandwidth Limiting
@@ -435,6 +451,8 @@ rsync -aAXvz --delete --bwlimit=2m \
   /etc/ backup-server:/backup/etc/
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 10. Partial Transfers and Resume
@@ -450,6 +468,8 @@ rsync -aAXvz --delete --partial --progress \
 rsync -aAXvz --delete --partial-dir=.rsync-partial \
   /var/lib/mysql/ backup-server:/backup/mysql/
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -500,6 +520,8 @@ rsync -aAXv --delete \
 
 **Note:** Rsync daemon mode transmits passwords in cleartext unless combined with SSH tunnel or used only on trusted internal networks.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 12. Verifying rsync Backups
@@ -517,6 +539,8 @@ echo "Backup files:"; find /backup/snapshots/$(hostname)/$(date +%Y-%m-%d)/etc -
 sudo rsync -aAXvn --checksum /etc/ /backup/snapshots/$(hostname)/$(date +%Y-%m-%d)/etc/
 # Any output means those files differ
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -539,6 +563,8 @@ sudo rsync -aAXv --numeric-ids \
   /backup/snapshots/$(hostname)/2026-02-10/home/ \
   /restore/home-20260210/
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -645,6 +671,8 @@ sudo cat /var/log/rsync-backup.log
 ls -la /backup/snapshots/$(hostname -s)/
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -660,6 +688,8 @@ ls -la /backup/snapshots/$(hostname -s)/
 9. What is the difference between rsync SSH transport and rsync daemon mode?
 10. How do you verify that an rsync backup is complete and accurate?
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Answers to Review Questions
@@ -674,6 +704,8 @@ ls -la /backup/snapshots/$(hostname -s)/
 8. `cp /backup/snapshots/HOSTNAME/DATE/path/to/file /original/path/to/file` — rsync snapshots are plain directories; any single file can be copied directly using `cp` or `rsync`.
 9. **SSH transport** encrypts data in transit using SSH; slower due to encryption overhead but secure. **Daemon mode** uses the rsync protocol directly (port 873) without encryption; faster but only suitable for trusted internal networks.
 10. Run rsync again with `--checksum` and `--dry-run` — any output means the files differ. Also compare file counts between source and backup. For deep verification, use `diff -rq`.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

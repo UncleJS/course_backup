@@ -68,6 +68,8 @@ Data loss happens. The cause is rarely one dramatic event — it is more commonl
 
 A backup is a **copy of data that can be used to restore the original** after a loss event. This sounds obvious, but the subtleties — *what* data, *how often*, *stored where*, *kept how long*, *verified how* — define the difference between a working backup strategy and false security.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. Core Terminology
@@ -102,6 +104,8 @@ High RPO +  High RTO =  Low cost  (nightly tape, slow restore)
 ```
 
 Always document your RPO and RTO before choosing tools or designing a backup schedule.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -174,6 +178,8 @@ An exact real-time (or near real-time) copy of data. If a file is deleted on the
 | Synthetic Full | Medium | Fast | Fast | Simple |
 | Mirror | High | Fast | Fast | Risky (no history) |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 4. The 3-2-1 Backup Rule
@@ -213,6 +219,8 @@ An updated rule for ransomware-resistant environments:
 | Copy 1 | Source machine | Local disk (LVM) | LVM snapshot |
 | Copy 2 | Local backup server | NAS / dedicated disk | rsync / Bareos |
 | Copy 3 | Cloud / offsite | S3-compatible object storage | Restic |
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -254,6 +262,8 @@ Common schemes:
 - Keep monthly backups (1st of month) for 12 months
 - Keep yearly backups (1st January) for 3 years
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 6. What Makes a Good Backup
@@ -271,6 +281,8 @@ A backup is only as good as your ability to restore from it. The following prope
 | **Offsite** | At least one copy exists outside the primary location |
 
 > **Rule:** A backup that has never been tested is not a backup. It is an assumption.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -292,6 +304,8 @@ Backing up files that are actively being written to can produce an inconsistent 
 - **For filesystems:** Use LVM snapshots (covered in Module 05) or XFS freeze (`xfs_freeze`)
 - **For running VMs:** Use QEMU guest agent with filesystem freeze
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 8. Backup vs. Replication vs. High Availability
@@ -305,6 +319,8 @@ These are often confused but serve different purposes:
 | **High Availability (HA)** | Downtime, single node failure | Data loss, corruption, logical errors |
 
 **They are complementary, not interchangeable.** A production system needs all three for full protection.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -320,6 +336,8 @@ After every backup, you should verify it. Methods:
 | **Full DR drill** | Restore entire system to a new machine and boot it | High |
 
 Minimum recommended: checksum verification on every backup, test restore monthly, DR drill annually.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -353,6 +371,8 @@ Need to recover individual files quickly?
                         └─ YES → Use Restic
                         └─ NO  → rsync to NAS is sufficient
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -396,6 +416,8 @@ For each of the following, state whether it qualifies as a backup and why:
 4. A VM snapshot taken before a system upgrade
 5. A MariaDB replication slave
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -411,6 +433,8 @@ For each of the following, state whether it qualifies as a backup and why:
 9. What is a GFS retention scheme?
 10. Name two mechanisms that complement backups but do not replace them.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Answers to Review Questions
@@ -425,6 +449,8 @@ For each of the following, state whether it qualifies as a backup and why:
 8. **RTO** = Recovery Time Objective. It measures the maximum acceptable time to restore service after a failure. RPO measures *data* loss tolerance; RTO measures *downtime* tolerance.
 9. **GFS (Grandfather-Father-Son)** is a rotation scheme keeping: daily backups (Son) for ~1 week, weekly backups (Father) for ~1 month, monthly backups (Grandfather) for ~1 year.
 10. Any two of: replication, high availability clustering, RAID, database hot standby.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

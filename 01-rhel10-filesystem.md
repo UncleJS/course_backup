@@ -85,6 +85,8 @@ RHEL 10 follows the FHS — a standard layout that defines where different types
 - **Systemd** manages services; unit files in `/etc/systemd/` are critical config.
 - **DNF** module state is stored in `/etc/dnf/` and `/var/lib/dnf/` — relevant for system rebuilds.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. Directory-by-Directory Reference
@@ -116,6 +118,8 @@ Everything needed to reconfigure a freshly installed RHEL 10 to match your curre
 
 **Size:** Typically 10–50 MB. Back up on every scheduled run.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.2 `/home` — User Home Directories
@@ -133,6 +137,8 @@ du -sh /home/*
 
 **Note:** Never exclude hidden files/directories (`.bashrc`, `.ssh/`, `.gnupg/`) — these are often the most important files for a user.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.3 `/root` — Root Home Directory
@@ -148,6 +154,8 @@ The root user's home. Contains scripts, SSH keys, `.bashrc`, `.bash_history`, an
 /root/bin/                    # Admin scripts
 /root/.bashrc, /root/.bash_profile
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -175,6 +183,8 @@ This is where running services store their data. The most important subdirectori
 
 **⚠️ Database warning:** Never back up live database data files (`/var/lib/mysql/`, `/var/lib/postgresql/`) using file copy methods while the database is running. Use database-native dump tools instead, then back up the dump file. See Module 09 for details.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.5 `/boot` — Boot Files
@@ -199,6 +209,8 @@ Contains the Linux kernel, initramfs (initial RAM filesystem), GRUB bootloader c
 
 **Size:** Usually 500 MB – 2 GB.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.6 `/srv` — Service Data
@@ -212,6 +224,8 @@ By FHS convention, data served by the system (FTP, HTTP, etc.) lives here. Many 
 ls -la /srv/
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.7 `/opt` — Optional Software
@@ -224,6 +238,8 @@ Third-party and commercial software installs here. If the software stores its ow
 # Check for data under /opt
 du -sh /opt/*
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -241,6 +257,8 @@ Everything under `/usr` can be reinstalled with `dnf reinstall`. However, except
 
 Generally exclude `/usr` from backups but include `/usr/local/`.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.9 `/tmp` and `/var/tmp`
@@ -248,6 +266,8 @@ Generally exclude `/usr` from backups but include `/usr/local/`.
 **Priority: EXCLUDE**
 
 Temporary files. Contents are not needed for recovery. `/tmp` is often a `tmpfs` mount and does not survive reboots anyway.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -269,6 +289,8 @@ These are virtual filesystems, runtime data, or data that would corrupt your bac
 lost+found/     # Filesystem recovery directory — not useful to back up
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### 2.11 RHEL 10 Specific: Podman Container Storage
@@ -281,6 +303,8 @@ If the machine runs Podman containers, the storage paths are:
 | `~/.local/share/containers/` | Rootless container data (per user) |
 
 **Note:** Container images can be large and are usually rebuildable from a registry. Back up container **volumes** (data), not images unless the images are customised and not stored in a registry.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -304,6 +328,8 @@ If SELinux labels are lost after a restore, use:
 touch /.autorelabel
 reboot
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -348,6 +374,8 @@ reboot
 | `/mnt/` | Temporary mounts |
 | `/backup/` | The backup destination itself! |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 4. Calculating Backup Size
@@ -370,6 +398,8 @@ du -sh /var/lib/* 2>/dev/null | sort -h
 du -ah / --exclude=/proc --exclude=/sys --exclude=/dev 2>/dev/null \
   | sort -rh | head -20
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -433,6 +463,8 @@ Include:
 Recommendation: Back up data volumes, rebuild images from registry
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 6. Creating Your Backup Manifest
@@ -481,6 +513,8 @@ sudo tee /etc/backup/manifest.conf <<'EOF'
 - /var/lib/containers/storage/overlay/    # Container layers (rebuildable)
 EOF
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -542,6 +576,8 @@ file /proc /sys /dev
 df -T /proc /sys /dev
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -557,6 +593,8 @@ df -T /proc /sys /dev
 9. Where are user crontabs stored on RHEL 10?
 10. If a server runs Podman containers, what is the recommended backup approach: images or volumes?
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Answers to Review Questions
@@ -571,6 +609,8 @@ df -T /proc /sys /dev
 8. `du -sh /etc /var/lib`
 9. User crontabs are in `/var/spool/cron/crontabs/` (one file per user). Root's crontab is at `/var/spool/cron/root`.
 10. Back up **volumes** (data), not images. Images can be rebuilt from a container registry. Volumes hold the application data that cannot be recreated.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

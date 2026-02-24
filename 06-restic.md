@@ -105,6 +105,8 @@ Restic is a modern, open-source backup tool written in Go. It has become the sta
 | Single-file restore | Yes | Yes |
 | Resume interrupted backup | Yes | Yes (rsync) |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. Installation
@@ -144,6 +146,8 @@ restic version
 sudo restic self-update
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 3. Core Concepts
@@ -177,6 +181,8 @@ Internally, Restic chunks data into variable-size **blobs**, groups them into **
 ### Password / Key
 
 The repository is encrypted with a key derived from a password. The password is never stored — you must provide it every time. Multiple keys can be stored in a repository (useful for team access).
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -242,6 +248,8 @@ sudo -E restic backup /etc /home /root
 # Output shows: X files changed, Y bytes added, Z bytes unchanged
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 5. Listing and Browsing Snapshots
@@ -268,6 +276,8 @@ sudo -E restic ls a1b2c3d4
 # Show files matching a path in a snapshot
 sudo -E restic ls a1b2c3d4 /etc/ssh/
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -329,6 +339,8 @@ sudo umount /mnt/restic
 # or: kill %1
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 7. Tags
@@ -347,6 +359,8 @@ sudo -E restic tag --add weekly a1b2c3d4
 sudo -E restic tag --remove daily a1b2c3d4
 sudo -E restic tag --set "monthly,2026" a1b2c3d4
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -411,6 +425,8 @@ sudo -E restic prune
 sudo -E restic prune --repack-small
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 9. Check — Repository Integrity Verification
@@ -434,6 +450,8 @@ sudo -E restic check --read-data-subset=10%
 ```
 
 **Recommendation:** Run `restic check` after every forget/prune. Run `restic check --read-data-subset=10%` weekly. Run `restic check --read-data` monthly.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -493,6 +511,8 @@ export RESTIC_SFTP_ARGS="-i /root/.ssh/restic_sftp_key -o StrictHostKeyChecking=
 source /etc/backup/restic-env-sftp
 sudo -E restic backup /etc /home
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -583,6 +603,8 @@ sudo -E restic -o s3.connections=5 backup /etc
 # Use S3-compatible endpoint (for regions that require it)
 export RESTIC_REPOSITORY="s3:https://s3.eu-west-2.amazonaws.com/my-bucket/backups"
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -708,6 +730,8 @@ sudo -E restic backup /etc --verbose
 mc ls local/restic-backups/$(hostname)/
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 13. Exclude Patterns File
@@ -739,6 +763,8 @@ EOF
 # Use it:
 sudo -E restic backup /etc /home --exclude-file=/etc/backup/restic-excludes.txt
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -867,6 +893,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now restic-backup-s3.timer
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 15. Restic Key Management
@@ -886,6 +914,8 @@ sudo -E restic key passwd
 # Remove a key (use key ID from 'key list')
 sudo -E restic key remove <key-id>
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -987,6 +1017,8 @@ sudo systemctl list-timers restic-backup.timer
 sudo cat /var/log/restic-backup.log
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -1002,6 +1034,8 @@ sudo cat /var/log/restic-backup.log
 9. What does `restic mount` do, and what package must be installed first?
 10. How do you add a second password/key to a Restic repository?
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Answers to Review Questions
@@ -1016,6 +1050,8 @@ sudo cat /var/log/restic-backup.log
 8. Restic connects to MinIO using the **S3 API** (REST over HTTP/HTTPS). MinIO is S3-compatible, so the Restic S3 backend works unchanged. The repository URL format is `s3:http://host:9000/bucket/path`. The credentials are `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 9. `restic mount MOUNTPOINT` mounts a virtual filesystem using **FUSE** that exposes all snapshots as browsable directories. The package `fuse` must be installed first. The mount appears as `hosts/HOSTNAME/SNAPSHOTID/` and `hosts/HOSTNAME/latest/`.
 10. `restic key add` — you will be prompted for the new password. The new key is stored in the repository's `keys/` directory. Both keys can now be used to access the repository.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

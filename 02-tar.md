@@ -74,6 +74,8 @@ By the end of this module you will be able to:
 tar --version
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. Basic Concepts
@@ -97,6 +99,8 @@ These are separate operations. You can have an uncompressed tar archive (`.tar`)
 | `.tar.xz` or `.txz` | xz (LZMA2) compressed |
 | `.tar.zst` | Zstandard compressed |
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 3. Compression Algorithm Comparison
@@ -114,6 +118,8 @@ These are separate operations. You can have an uncompressed tar archive (`.tar`)
 - **Daily backups:** `gzip` or `zstd` — speed matters
 - **Weekly/monthly archives:** `xz` — maximum compression
 - **Piping over SSH or network:** no compression in `tar` — let SSH handle it, or use `zstd`
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -141,6 +147,8 @@ These are separate operations. You can have an uncompressed tar archive (`.tar`)
 | `-C` | `--directory=` | Change to directory before extracting |
 | `--numeric-owner` | | Use numeric UID/GID (portable) |
 | `-h` | `--dereference` | Follow symlinks |
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -225,6 +233,8 @@ sudo tar -czpf /backup/system-full-$(date +%Y%m%d).tar.gz \
   /
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 6. Listing and Verifying Archives
@@ -243,6 +253,8 @@ tar -tzf /backup/etc-20260224.tar.gz > /dev/null && echo "Archive OK" || echo "A
 sudo tar --compare --file=/backup/etc-20260224.tar.gz --gzip /etc/
 # Output shows files that differ since backup was taken
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -304,6 +316,8 @@ sudo tar -xzvpf /backup/etc-20260224.tar.gz \
 # List matching files without extracting
 tar -tzf /backup/etc-20260224.tar.gz | grep sshd
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -396,6 +410,8 @@ sudo tar -xzpf /backup/etc-incr-20260219.tar.gz \
 
 **Note:** `--listed-incremental=/dev/null` tells tar to apply the incremental without needing the original snapshot (just apply all changes in the archive, including deletions).
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 9. Handling Deleted Files in Incrementals
@@ -403,6 +419,8 @@ sudo tar -xzpf /backup/etc-incr-20260219.tar.gz \
 When `tar` creates an incremental backup, it records files that were **deleted** since the last run. When you apply the incremental with `--listed-incremental=/dev/null`, `tar` will remove those files from the restore destination.
 
 This is how `tar` incrementals handle file deletion — it is automatic and correct.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -425,6 +443,8 @@ cat /backup/system-20260224.tar.gz.part-* | sudo tar -xzpf - \
   -C /restore
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## 11. Streaming tar Over SSH
@@ -442,6 +462,8 @@ sudo tar -czpf - \
   --xattrs --acls --selinux --numeric-owner \
   /etc | ssh backup-server "tar -xzpf - --xattrs --acls -C /restore/$(hostname)/etc"
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -470,6 +492,8 @@ TYPE="full"
 FILENAME="${HOST}-${SOURCE}-${TYPE}-${DATE}-${TIME}.tar.gz"
 sudo tar -czpf /backup/${FILENAME} --xattrs --acls --selinux /etc/
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -554,6 +578,8 @@ SCRIPT
 
 sudo chmod +x /usr/local/bin/tar-backup.sh
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -655,6 +681,8 @@ sudo ls -lh /backup/tar/
 sudo cat /var/log/tar-backup.log
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Review Questions
@@ -670,6 +698,8 @@ sudo cat /var/log/tar-backup.log
 9. Compare `gzip`, `xz`, and `zstd` compression — when would you choose each?
 10. Why must the backup destination directory be excluded from a full system `tar` backup?
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Answers to Review Questions
@@ -684,6 +714,8 @@ sudo cat /var/log/tar-backup.log
 8. `-C /directory` changes the working directory before extracting, so all files are placed relative to that directory rather than the filesystem root.
 9. **gzip** — fast, widely compatible, good for daily backups. **xz** — slowest, highest compression ratio, best for long-term archival storage where space is critical. **zstd** — very fast with excellent compression ratio; best balance for modern systems.
 10. If the backup destination is inside a path being archived, `tar` will recurse into it and either loop indefinitely or create an archive containing itself, wasting space and potentially corrupting the backup.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 

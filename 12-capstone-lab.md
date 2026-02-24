@@ -12,6 +12,8 @@ This capstone lab simulates a realistic disaster: the primary disk on `backup-cl
 
 This module integrates every skill from Modules 00–11. It is designed to be run in a VM environment where disk destruction is safe.
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Lab Environment
@@ -22,6 +24,8 @@ backup-client   192.168.100.20   RHEL 10   ≥ 20 GB disk   The system that "fai
 ```
 
 Both VMs must be running before starting. See `README.md` for initial environment setup.
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -79,6 +83,8 @@ Before beginning the capstone:
 [ ] This file is printed or accessible from a machine OTHER than backup-client
 [ ] You have at least 90 minutes of uninterrupted time
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -170,6 +176,8 @@ cat /root/pre-disaster-inventory.txt
 [client]# scp /root/pre-disaster-inventory.txt \
     backupuser@192.168.100.10:/backup/pre-disaster-inventory.txt
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -305,6 +313,8 @@ scp /root/pre-disaster-inventory.txt \
     backupuser@192.168.100.10:/backup/pre-disaster-inventory.txt
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Phase 3 — Simulate Disk Failure
@@ -360,6 +370,8 @@ reboot
 # scenario rather than a repaired disk, which is actually more realistic.
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Phase 4 — Disaster Recovery Execution
@@ -370,6 +382,8 @@ reboot
 # On backup-server or a separate terminal:
 echo "RECOVERY_START=$(date -Iseconds)" >> /backup/capstone-times.txt
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -520,6 +534,8 @@ diff <(cat /root/pre-disaster-inventory.txt | grep CANARY) \
        done)
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### Scenario B — Restore Using tar (Second Method)
@@ -555,6 +571,8 @@ ls /mnt/sysroot/
 
 #### Step B5 — Reboot and validate (same as Step A6)
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ### Scenario C — Restore Using rsync (Third Method)
@@ -581,6 +599,8 @@ ls /mnt/sysroot/
 ```
 
 #### Step C3 — Rebuild bootloader and reboot (same as Steps A5–A6)
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -656,6 +676,8 @@ Fill in this table with measured results:
 | tar | | | | | |
 | rsync | | | | | |
 | restic | | | | | |
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -794,6 +816,8 @@ END OF REPORT
 =============================================================================
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Phase 7 — Advanced Capstone Extensions
@@ -930,6 +954,8 @@ chmod 755 /backup/recovery-runbook.sh
 echo "Recovery runbook saved to /backup/recovery-runbook.sh"
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Capstone Completion Criteria
@@ -949,6 +975,8 @@ You have completed the capstone when all of the following are true:
 [ ] Next drill date is scheduled in the post-mortem
 ```
 
+[↑ Table of Contents](#table-of-contents)
+
 ---
 
 ## Appendix A — Quick Reference: Restore Commands
@@ -963,6 +991,8 @@ You have completed the capstone when all of the following are true:
 | restic (FUSE browse) | `restic mount /mnt/browse` |
 | Bareos (bconsole) | `restore` wizard in `bconsole` |
 | LVM snapshot | `mount -o ro,nouuid /dev/vg/snap /mnt/snap` |
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
@@ -995,6 +1025,8 @@ Last DR drill:  ________________
 Next DR drill:  ________________
 =============================================================================
 ```
+
+[↑ Table of Contents](#table-of-contents)
 
 ---
 
