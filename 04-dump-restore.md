@@ -1,0 +1,615 @@
+# Module 04 — `dump` / `xfsdump` — Filesystem-Level Backup
+
+## Learning Objectives
+
+By the end of this module you will be able to:
+
+- Understand the difference between file-level and filesystem-level backup
+- Perform level-0 through level-9 dumps with `dump` (ext4) and `xfsdump` (XFS)
+- Restore individual files and entire filesystems with `restore` and `xfsrestore`
+- Understand why XFS is the default filesystem in RHEL 10 and what that means for tools
+- Schedule dump-based backups as part of a retention strategy
+- Perform bare-metal recovery using `xfsdump`
+
+---
+
+## 1. Filesystem-Level vs File-Level Backup
+
+File-level tools (tar, rsync) operate on the VFS layer — they open files through the kernel and copy them one by one. Filesystem-level tools operate at a lower level — they read the filesystem structure directly.
+
+| Aspect | File-level (tar/rsync) | Filesystem-level (dump/xfsdump) |
+|--------|----------------------|--------------------------------|
+| What is backed up | Individual files and dirs | Raw filesystem data structures |
+| Metadata preserved | Yes (with flags) | Yes — at the FS level |
+| Speed on large FS | Slower (open each file) | Faster (sequential FS read) |
+| Works across filesystems | Yes | No — FS-specific tools |
+| Live backup (mounted FS) | Possible (with risk) | Supported (with limitations) |
+| Incremental | Via snapshot file | Native level 0-9 system |
+| Restore granularity | File/dir | File/dir or full FS |
+
+---
+
+## 2. RHEL 10 Default Filesystem: XFS
+
+RHEL 10 uses **XFS** as the default filesystem for all partitions (root, `/home`, `/var`, etc.). This is important because:
+
+- `dump`/`restore` are designed for **ext2/ext3/ext4** filesystems — they do not work on XFS
+- XFS has its own dedicated tools: **`xfsdump`** and **`xfsrestore`**
+- `dump` may still be relevant if you have ext4 partitions (e.g., `/boot` on some systems)
+
+```bash
+# Verify your filesystem types
+df -T
+lsblk -f
+
+# Check if /boot is ext4 or xfs
+df -T /boot
+```
+
+---
+
+## 3. Part A: `dump` and `restore` (for ext4/ext2/ext3)
+
+### 3.1 Installing dump
+
+```bash
+sudo dnf install -y dump
+```
+
+### 3.2 The dump level system
+
+`dump` uses a **level number (0–9)** to define the scope of the backup:
+
+| Level | What it backs up |
+|-------|-----------------|
+| 0 | Everything — full dump |
+| 1 | All files changed since the last level-0 dump |
+| 2 | All files changed since the last level-1 dump |
+| ... | ... |
+| 9 | All files changed since the last level-8 dump |
+
+This enables flexible backup schedules. A common scheme:
+- Level 0 monthly
+- Level 1 weekly
+- Level 2 daily
+
+### 3.3 Level-0 (full) dump
+
+```bash
+# Dump /boot (ext4) to a file
+sudo dump -0uf /backup/boot-level0-$(date +%Y%m%d).dump /boot
+
+# Flags:
+# -0  = level 0 (full dump)
+# -u  = update /var/lib/dumpdates after successful dump
+# -f  = output file (or device)
+
+# Dump to a remote host via SSH
+sudo dump -0uf - /boot | ssh backup-server "cat > /backup/boot-level0-$(date +%Y%m%d).dump"
+```
+
+### 3.4 The `/var/lib/dumpdates` file
+
+`dump -u` writes a record to `/var/lib/dumpdates` after each successful dump. This file tracks when each level was last run, which `dump` uses to determine what has changed.
+
+```bash
+# View dump history
+sudo cat /var/lib/dumpdates
+# Example output:
+# /dev/sda1 0 Mon Feb 17 02:00:00 2026
+# /dev/sda1 1 Mon Feb 24 02:00:00 2026
+```
+
+### 3.5 Incremental dump (level 1+)
+
+```bash
+# Level-1 incremental (changes since last level-0)
+sudo dump -1uf /backup/boot-level1-$(date +%Y%m%d).dump /boot
+
+# Level-2 incremental (changes since last level-1)
+sudo dump -2uf /backup/boot-level2-$(date +%Y%m%d).dump /boot
+```
+
+### 3.6 Dump options reference
+
+| Flag | Description |
+|------|-------------|
+| `-0` to `-9` | Dump level |
+| `-u` | Update `/var/lib/dumpdates` |
+| `-f FILE` | Output to file or device |
+| `-z[N]` | Compress output with zlib (level 1-9) |
+| `-j[N]` | Compress with bzip2 |
+| `-y` | Compress with lzo |
+| `-e INODE` | Exclude inode |
+| `-n` | Notify users in the `operator` group |
+| `-s FEET` | Set tape size |
+| `-b SIZE` | Block size in KB |
+| `-v` | Verbose output |
+
+### 3.7 Restoring with `restore`
+
+#### Interactive restore (recommended)
+
+The interactive mode lets you browse the dump and select files:
+
+```bash
+# Start interactive restore from a dump file
+sudo restore -if /backup/boot-level0-20260224.dump
+
+# Interactive commands:
+# ls          — list current directory
+# cd DIR      — change directory
+# add FILE    — mark file for restore
+# add DIR     — mark directory for restore
+# delete FILE — unmark
+# extract     — restore all marked files
+# quit        — exit
+# verbose     — toggle verbose mode
+# help        — show all commands
+```
+
+#### Restore entire filesystem
+
+```bash
+# Create restore destination and restore
+sudo mkdir -p /restore/boot
+cd /restore/boot
+sudo restore -rf /backup/boot-level0-20260224.dump
+
+# If you have incrementals, apply them in order:
+sudo restore -rf /backup/boot-level1-20260225.dump
+sudo restore -rf /backup/boot-level2-20260226.dump
+```
+
+#### Restore a single file
+
+```bash
+cd /restore/boot
+sudo restore -xf /backup/boot-level0-20260224.dump ./grub2/grub.cfg
+# -x = extract specific files
+```
+
+#### Restore to original location (overwrite)
+
+```bash
+cd /
+sudo restore -rf /backup/boot-level0-20260224.dump
+```
+
+---
+
+## 4. Part B: `xfsdump` and `xfsrestore` (for XFS — RHEL 10 default)
+
+`xfsdump` is the native backup tool for XFS filesystems. It is the correct tool to use for all XFS partitions in RHEL 10.
+
+### 4.1 Installing xfsdump
+
+```bash
+sudo dnf install -y xfsdump
+
+# Verify
+xfsdump --version
+```
+
+### 4.2 xfsdump concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Session** | A single xfsdump run; identified by a UUID |
+| **Dump level** | 0–9 (same concept as dump) |
+| **Inventory** | Database of all xfsdump sessions at `/var/lib/xfsdump/inventory/` |
+| **Media file** | The output file or device containing the dump |
+| **Stream** | xfsdump can write multiple parallel streams |
+
+### 4.3 Level-0 (full) dump of an XFS filesystem
+
+```bash
+# Full dump of the root filesystem
+sudo xfsdump -l 0 -f /backup/root-level0-$(date +%Y%m%d).xfsdump /
+
+# Full dump of /home
+sudo xfsdump -l 0 -f /backup/home-level0-$(date +%Y%m%d).xfsdump /home
+
+# Flags:
+# -l 0  = level 0 (full dump)
+# -f    = output file or device
+```
+
+During the first run, xfsdump prompts for:
+- **Session label** — a human-readable name for this backup (e.g., `root-full-20260224`)
+- **Media label** — a label for the output file/device (e.g., `root-media-001`)
+
+To run non-interactively:
+
+```bash
+sudo xfsdump -l 0 \
+  -L "root-full-$(date +%Y%m%d)" \
+  -M "root-media-$(date +%Y%m%d)" \
+  -f /backup/root-level0-$(date +%Y%m%d).xfsdump \
+  /
+
+# -L = session label
+# -M = media label
+```
+
+### 4.4 xfsdump options reference
+
+| Flag | Description |
+|------|-------------|
+| `-l N` | Dump level (0–9) |
+| `-f FILE` | Output file or device |
+| `-L LABEL` | Session label |
+| `-M LABEL` | Media label |
+| `-s PATH` | Dump only a subtree (subdirectory) of the filesystem |
+| `-I` | Display inventory information |
+| `-J` | Inhibit update of inventory (for testing) |
+| `-e` | Estimate dump size without running |
+| `-v VERBOSITY` | Verbosity: silent, verbose, trace |
+| `-p SECS` | Progress report interval in seconds |
+| `-b SIZE` | Block size |
+| `-z SIZE` | Maximum file size to include |
+| `--` | Signals end of options |
+
+### 4.5 Incremental dumps
+
+```bash
+# Level-1 incremental (changes since last level-0)
+sudo xfsdump -l 1 \
+  -L "root-incr1-$(date +%Y%m%d)" \
+  -M "root-media-incr1-$(date +%Y%m%d)" \
+  -f /backup/root-level1-$(date +%Y%m%d).xfsdump \
+  /
+
+# Level-2 incremental
+sudo xfsdump -l 2 \
+  -L "root-incr2-$(date +%Y%m%d)" \
+  -M "root-media-incr2-$(date +%Y%m%d)" \
+  -f /backup/root-level2-$(date +%Y%m%d).xfsdump \
+  /
+```
+
+xfsdump automatically reads its **inventory** (`/var/lib/xfsdump/inventory/`) to determine what changed since the last run of the appropriate level.
+
+### 4.6 Viewing the xfsdump inventory
+
+```bash
+# Show all recorded dump sessions
+sudo xfsdump -I
+
+# Example output:
+# file system 0:
+#         fs id:          a1b2c3d4-...
+#         session 0:
+#                 mount point:    /
+#                 device:         /dev/mapper/rhel-root
+#                 time:           Mon Feb 17 02:00:00 2026
+#                 session label:  "root-full-20260217"
+#                 session id:     uuid-here
+#                 level:          0
+#                 ...
+```
+
+### 4.7 Estimating dump size
+
+```bash
+# Estimate size before running (no dump is created)
+sudo xfsdump -e -l 0 -f /dev/null /
+```
+
+### 4.8 Dumping over SSH (piped to remote)
+
+```bash
+# Pipe xfsdump output through SSH to remote server
+sudo xfsdump -l 0 \
+  -L "root-full-$(date +%Y%m%d)" \
+  -M "root-media" \
+  -f - \
+  / | ssh backup-server "cat > /backup/root-level0-$(date +%Y%m%d).xfsdump"
+```
+
+---
+
+## 5. Restoring with `xfsrestore`
+
+### 5.1 Interactive restore (recommended)
+
+```bash
+# Interactive restore mode
+sudo xfsrestore -i \
+  -f /backup/root-level0-20260224.xfsdump \
+  /restore/
+
+# Interactive commands (same as restore):
+# ls, cd, add, delete, extract, quit
+```
+
+### 5.2 Restore entire filesystem
+
+```bash
+# Restore to alternate location
+sudo mkdir -p /restore/root
+sudo xfsrestore -f /backup/root-level0-20260224.xfsdump /restore/root/
+
+# Restore with verbose output
+sudo xfsrestore -v verbose -f /backup/root-level0-20260224.xfsdump /restore/root/
+```
+
+### 5.3 Applying incremental restores in order
+
+```bash
+# 1. Restore the level-0 full dump first
+sudo xfsrestore -f /backup/root-level0-20260217.xfsdump /restore/root/
+
+# 2. Apply level-1 incremental
+sudo xfsrestore -f /backup/root-level1-20260218.xfsdump /restore/root/
+
+# 3. Apply level-2 incremental (if any)
+sudo xfsrestore -f /backup/root-level2-20260219.xfsdump /restore/root/
+```
+
+### 5.4 Restore a subtree (directory)
+
+```bash
+# Restore only /etc from a full root dump
+sudo xfsrestore -s etc \
+  -f /backup/root-level0-20260224.xfsdump \
+  /restore/
+
+# Files will be at /restore/etc/
+```
+
+### 5.5 Restore a single file
+
+```bash
+# Interactive mode is easiest for single files
+sudo xfsrestore -i -f /backup/root-level0-20260224.xfsdump /restore/
+# Then: cd etc/ssh; add sshd_config; extract; quit
+```
+
+### 5.6 xfsrestore options reference
+
+| Flag | Description |
+|------|-------------|
+| `-f FILE` | Input file or device |
+| `-i` | Interactive mode |
+| `-s PATH` | Restore only a subtree |
+| `-r` | Resume an interrupted restore |
+| `-S UUID` | Restore specific session by UUID |
+| `-v VERBOSITY` | Verbosity level |
+| `-p SECS` | Progress interval |
+
+---
+
+## 6. XFS Freeze for Consistent Live Backups
+
+When backing up a mounted XFS filesystem, you can freeze it momentarily for consistency:
+
+```bash
+# Freeze the filesystem (writes are paused, reads continue)
+sudo xfs_freeze -f /home
+
+# Take your backup (LVM snapshot, xfsdump, etc.)
+sudo xfsdump -l 0 -L "home-frozen" -M "home-media" -f /backup/home.xfsdump /home
+
+# Unfreeze — I/O resumes
+sudo xfs_freeze -u /home
+```
+
+**Important:** Keep the freeze window as short as possible. Applications waiting on I/O will block during the freeze.
+
+---
+
+## 7. Comparing dump/xfsdump Approaches
+
+### When to use `xfsdump`
+
+- Backing up large XFS filesystems (root, /home, /var)
+- You need native level-based incrementals with automatic inventory tracking
+- You need to back up to tape or pipe to a remote host
+- You want the fastest possible full filesystem backup
+
+### When to use `tar` or `rsync` instead
+
+- You need portability (tar archives can be read anywhere)
+- You are backing up a subset of files, not a whole filesystem
+- You need encrypted archives (combine xfsdump with GPG — see Module 11)
+- You need deduplication across backups
+
+### Tool decision matrix
+
+| Need | Recommended Tool |
+|------|-----------------|
+| Fast full XFS filesystem backup | `xfsdump` |
+| Incremental XFS backup with level system | `xfsdump` |
+| Portable archives across systems | `tar` |
+| Space-efficient incrementals (hardlinks) | `rsync --link-dest` |
+| Encrypted remote backups | `restic` |
+| Enterprise scheduling and catalog | `bareos` |
+
+---
+
+## 8. Automation Script
+
+```bash
+sudo tee /usr/local/bin/xfsdump-backup.sh <<'SCRIPT'
+#!/bin/bash
+# xfsdump-backup.sh — XFS filesystem backup with level rotation
+# Usage: xfsdump-backup.sh [0|1|2]  (default: 1)
+
+set -euo pipefail
+
+BACKUP_DIR="/backup/xfsdump"
+LOG_FILE="/var/log/xfsdump-backup.log"
+LEVEL="${1:-1}"
+DATE=$(date +%Y%m%d)
+HOST=$(hostname -s)
+
+# Map: mountpoint -> output name
+declare -A FILESYSTEMS
+FILESYSTEMS["/"]="root"
+FILESYSTEMS["/home"]="home"
+FILESYSTEMS["/var"]="var"
+FILESYSTEMS["/boot"]="boot"
+
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"; }
+
+mkdir -p "${BACKUP_DIR}"
+
+log "=== xfsdump START: level=${LEVEL} host=${HOST} ==="
+
+for MOUNT in "${!FILESYSTEMS[@]}"; do
+  NAME="${FILESYSTEMS[$MOUNT]}"
+  OUTFILE="${BACKUP_DIR}/${HOST}-${NAME}-level${LEVEL}-${DATE}.xfsdump"
+
+  # Check if mountpoint exists and is XFS
+  FSTYPE=$(df -T "${MOUNT}" 2>/dev/null | awk 'NR==2{print $2}')
+  if [[ "${FSTYPE}" != "xfs" ]]; then
+    log "SKIP: ${MOUNT} is ${FSTYPE}, not xfs"
+    continue
+  fi
+
+  log "Dumping ${MOUNT} (level ${LEVEL}) -> ${OUTFILE}"
+  xfsdump \
+    -l "${LEVEL}" \
+    -L "${HOST}-${NAME}-level${LEVEL}-${DATE}" \
+    -M "${HOST}-${NAME}-media-${DATE}" \
+    -f "${OUTFILE}" \
+    "${MOUNT}" \
+    2>>"${LOG_FILE}" \
+    && log "OK: ${OUTFILE} ($(du -sh "${OUTFILE}" | cut -f1))" \
+    || log "ERROR: ${MOUNT} dump failed"
+done
+
+# Clean up old dumps (keep 14 days)
+log "Cleaning dumps older than 14 days"
+find "${BACKUP_DIR}" -name "*.xfsdump" -mtime +14 -delete
+
+log "=== xfsdump END ==="
+SCRIPT
+
+sudo chmod +x /usr/local/bin/xfsdump-backup.sh
+```
+
+---
+
+## Lab Exercises
+
+### Lab 04-1: Identify your filesystem types
+
+```bash
+# 1. List all mounted filesystems and their types
+df -T
+
+# 2. Specifically check root and /home
+df -T / /home /boot /var
+
+# 3. Identify which tool to use for each
+# XFS -> xfsdump/xfsrestore
+# ext4 -> dump/restore
+```
+
+### Lab 04-2: Full xfsdump of /boot or /home
+
+```bash
+# 1. Check /boot filesystem type
+df -T /boot
+
+# 2. If XFS: use xfsdump
+sudo xfsdump -l 0 \
+  -L "boot-full-$(date +%Y%m%d)" \
+  -M "boot-media-001" \
+  -f /backup/boot-level0-$(date +%Y%m%d).xfsdump \
+  /boot
+
+# 3. View the inventory
+sudo xfsdump -I
+
+# 4. Check output file size
+ls -lh /backup/boot-level0-$(date +%Y%m%d).xfsdump
+```
+
+### Lab 04-3: Make changes and run incremental
+
+```bash
+# 1. Create some test files in /home
+echo "lab test file $(date)" | sudo tee /home/xfsdump-test.txt
+
+# 2. Run level-1 incremental
+sudo xfsdump -l 1 \
+  -L "home-incr1-$(date +%Y%m%d)" \
+  -M "home-media-incr1" \
+  -f /backup/home-level1-$(date +%Y%m%d).xfsdump \
+  /home
+
+# 3. Verify the incremental is smaller than a full
+ls -lh /backup/home-level*.xfsdump 2>/dev/null || echo "No level-0 exists yet — run level-0 first"
+```
+
+### Lab 04-4: Interactive restore
+
+```bash
+# 1. Create a restore directory
+sudo mkdir -p /restore/xfs_test
+
+# 2. Launch interactive restore
+sudo xfsrestore -i \
+  -f /backup/home-level1-$(date +%Y%m%d).xfsdump \
+  /restore/xfs_test/
+# Inside interactive mode:
+# > ls
+# > cd /
+# > add home
+# > extract
+# > quit
+
+# 3. Verify the restored files
+ls /restore/xfs_test/
+```
+
+### Lab 04-5: Run the automated backup script
+
+```bash
+# Full backup (level 0)
+sudo /usr/local/bin/xfsdump-backup.sh 0
+
+# View log
+sudo cat /var/log/xfsdump-backup.log
+
+# View inventory
+sudo xfsdump -I
+```
+
+---
+
+## Review Questions
+
+1. What is the key difference between `dump` and `xfsdump`? Which should you use on RHEL 10?
+2. What does "level 0" mean in the dump level system?
+3. What does a level-2 dump back up relative to a level-1 dump?
+4. What file does `dump -u` write to, and why is it important?
+5. What is the xfsdump inventory, and where is it stored?
+6. When restoring incremental dumps, in what order must they be applied?
+7. What does `xfs_freeze` do, and why is it useful for backups?
+8. What flag limits an `xfsrestore` to a specific subdirectory?
+9. How do you estimate the size of an xfsdump before running it?
+10. What command lets you browse the contents of an xfsdump archive interactively?
+
+---
+
+## Answers to Review Questions
+
+1. `dump` works on **ext2/ext3/ext4** filesystems only. `xfsdump` works on **XFS** only. Since RHEL 10 defaults to XFS for all partitions, `xfsdump`/`xfsrestore` should be used for almost all RHEL 10 backup operations.
+2. Level 0 is a **complete dump** of the entire filesystem — all files regardless of when they were last modified. It is the baseline from which all incremental levels build.
+3. A level-2 dump backs up all files changed since the **last level-1 dump** (not the last level-0). Each level N backs up changes since the last dump of a lower level.
+4. `dump -u` writes to `/var/lib/dumpdates`. This file records the filesystem, dump level, and timestamp of each successful dump. It allows subsequent incremental dumps to know exactly when the last backup of each level occurred.
+5. The **xfsdump inventory** is a database of all xfsdump sessions, stored at `/var/lib/xfsdump/inventory/`. It records session UUIDs, timestamps, levels, and source filesystems, enabling xfsdump to automatically determine what changed since the last backup.
+6. Incrementals must be applied in **chronological order starting with the level-0 full dump**. Apply level-0 first, then level-1, then level-2, etc. Each level builds on the previous.
+7. `xfs_freeze -f MOUNTPOINT` **pauses all write I/O** to an XFS filesystem while keeping reads active. This provides a crash-consistent state for backup. It is used to create a point-in-time freeze before taking a dump or snapshot. `xfs_freeze -u` unfreezes.
+8. `xfsrestore -s PATH` — restores only the subtree starting at `PATH` relative to the filesystem root.
+9. `xfsdump -e -l LEVEL -f /dev/null MOUNTPOINT` — the `-e` flag estimates the dump size without writing any data.
+10. `xfsrestore -i -f DUMPFILE DESTDIR` — launches interactive mode where you can browse, select, and extract files.
+
+---
+
+*Previous: [03 — rsync](03-rsync.md)*
+*Next: [05 — LVM Snapshots](05-lvm-snapshots.md)*
