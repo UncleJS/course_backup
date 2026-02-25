@@ -455,3 +455,5 @@ For each of the following, state whether it qualifies as a backup and why:
 ---
 
 *Next Module: [01 — RHEL 10 Filesystem & What to Back Up](01-rhel10-filesystem.md)*
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

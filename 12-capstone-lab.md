@@ -1078,3 +1078,5 @@ CAPSTONE (Module 12)
 ```
 
 **Congratulations. You now have the knowledge and hands-on experience to design, implement, test, and maintain enterprise-grade backup and disaster recovery systems on RHEL 10.**
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

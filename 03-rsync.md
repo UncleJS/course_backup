@@ -711,3 +711,5 @@ ls -la /backup/snapshots/$(hostname -s)/
 
 *Previous: [02 — tar](02-tar.md)*
 *Next: [04 — dump / xfsdump](04-dump-restore.md)*
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

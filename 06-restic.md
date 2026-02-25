@@ -1057,3 +1057,5 @@ sudo cat /var/log/restic-backup.log
 
 *Previous: [05 — LVM Snapshots](05-lvm-snapshots.md)*
 *Next: [07 — Bareos](07-bareos.md)*
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

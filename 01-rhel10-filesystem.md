@@ -616,3 +616,5 @@ df -T /proc /sys /dev
 
 *Previous: [00 — Backup Theory & Fundamentals](00-introduction.md)*
 *Next: [02 — tar](02-tar.md)*
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

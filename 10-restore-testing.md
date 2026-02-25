@@ -942,3 +942,5 @@ chmod 700 /usr/local/sbin/smoke-test.sh
    - Time from restore start to OS boot (T_start → T_boot)
    - Time from OS boot to all smoke tests passing (T_boot → T_ok)
    Total RTO = T_ok − T₀
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

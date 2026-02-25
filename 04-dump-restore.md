@@ -680,3 +680,5 @@ sudo xfsdump -I
 
 *Previous: [03 — rsync](03-rsync.md)*
 *Next: [05 — LVM Snapshots](05-lvm-snapshots.md)*
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

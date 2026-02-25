@@ -2817,3 +2817,5 @@ cat /tmp/webui-restore/etc/hostname
 
 *Previous: [06 — Restic](06-restic.md)*
 *Next: [08 — Amanda](08-amanda.md)*
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

@@ -721,3 +721,5 @@ sudo cat /var/log/tar-backup.log
 
 *Previous: [01 — RHEL 10 Filesystem & What to Back Up](01-rhel10-filesystem.md)*
 *Next: [03 — rsync](03-rsync.md)*
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

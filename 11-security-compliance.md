@@ -1010,3 +1010,5 @@ echo "Self-assessment: ${PASS} checks passed, ${FAIL} checks failed"
 7. If the secret key is on the backup server and the server is compromised, the attacker can decrypt all past and future backups. The secret key must be on a separate, more tightly controlled system (e.g., an admin workstation, HSM, or offline media). The backup server needs only the *public* key to encrypt; it never needs the secret key.
 
 8. The lab used keys named `backup_secrets`, `backup_storage`, and `backup_exec`. Naming audit rules with meaningful keys makes searching and reporting much easier: `ausearch -k backup_secrets` immediately filters to all events matching that key, without having to search by path or syscall across an unfiltered audit log.
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

@@ -1128,3 +1128,5 @@ restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
 7. `CPUQuota=50%` caps the backup service to 50% of one CPU core, preventing the backup process from monopolising CPU and degrading foreground application performance during backup windows.
 
 8. `systemctl list-timers --all`
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

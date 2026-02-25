@@ -905,3 +905,5 @@ sudo -u amandabackup crontab -l
 
 *Previous: [07 — Bareos](07-bareos.md)*
 *Next: [09 — Strategy, Automation & Retention](09-strategy-automation.md)*
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

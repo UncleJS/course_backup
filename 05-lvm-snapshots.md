@@ -680,3 +680,5 @@ sudo cat /var/log/lvm-snapshot-backup.log
 
 *Previous: [04 — dump / xfsdump](04-dump-restore.md)*
 *Next: [06 — Restic](06-restic.md)*
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0

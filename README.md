@@ -6,6 +6,19 @@ from theory through hands-on implementation to enterprise-grade deployment.
 
 ---
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Course Structure](#course-structure)
+- [Recommended Learning Paths](#recommended-learning-paths)
+- [Lab Environment Setup](#lab-environment-setup)
+- [Conventions Used in This Course](#conventions-used-in-this-course)
+- [Tools Covered](#tools-covered)
+- [Key Concepts Quick Reference](#key-concepts-quick-reference)
+- [License](#license)
+
+---
+
 ## Prerequisites
 
 | Requirement | Detail |
@@ -25,16 +38,16 @@ from theory through hands-on implementation to enterprise-grade deployment.
 | 00 | [00-introduction.md](00-introduction.md) | Backup Theory & Fundamentals | Beginner |
 | 01 | [01-rhel10-filesystem.md](01-rhel10-filesystem.md) | RHEL 10 Filesystem & What to Back Up | Beginner |
 | 02 | [02-tar.md](02-tar.md) | `tar` — Archives, Compression & Incrementals | Beginner–Intermediate |
-| 03 | [03-rsync.md](03-rsync.md) | `rsync` — Local/Remote Sync & Incrementals | Intermediate |
+| 03 | [03-rsync.md](03-rsync.md) | `rsync` — Local/Remote Sync & Snapshot-Style Incrementals | Intermediate |
 | 04 | [04-dump-restore.md](04-dump-restore.md) | `dump` / `xfsdump` — Filesystem-Level Backup | Intermediate |
 | 05 | [05-lvm-snapshots.md](05-lvm-snapshots.md) | LVM Snapshots — Consistent Pre-Backup Freezes | Intermediate |
 | 06 | [06-restic.md](06-restic.md) | Restic — Modern Deduplicated Encrypted Backups | Intermediate–Advanced |
-| 07 | [07-bareos.md](07-bareos.md) | Bareos — Enterprise Backup (Full Install) | Advanced |
+| 07 | [07-bareos.md](07-bareos.md) | Bareos — Enterprise Backup (Full Install & Deep Configuration) | Advanced |
 | 08 | [08-amanda.md](08-amanda.md) | Amanda — Network Backup Server | Advanced |
-| 09 | [09-strategy-automation.md](09-strategy-automation.md) | Strategy, Automation & Retention Policies | Intermediate–Advanced |
-| 10 | [10-restore-testing.md](10-restore-testing.md) | Restore Procedures & DR Testing | All Levels |
-| 11 | [11-security-compliance.md](11-security-compliance.md) | Security, Encryption & Compliance | Advanced |
-| 12 | [12-capstone-lab.md](12-capstone-lab.md) | Capstone Lab — Full Disaster Recovery Scenario | Advanced |
+| 09 | [09-strategy-automation.md](09-strategy-automation.md) | Backup Strategy and Automation | Intermediate–Advanced |
+| 10 | [10-restore-testing.md](10-restore-testing.md) | Restore Testing and Disaster Recovery Drills | All Levels |
+| 11 | [11-security-compliance.md](11-security-compliance.md) | Backup Security and Compliance | Advanced |
+| 12 | [12-capstone-lab.md](12-capstone-lab.md) | Capstone Lab: Full Disaster Recovery Scenario | Advanced |
 
 ---
 
@@ -138,6 +151,15 @@ Add these to `/etc/hosts` on both machines:
 | Retention Policy | Rules defining how long backups are kept |
 | Catalog | Database of backup metadata (what was backed up, when, where) |
 
+## License
+
+This project is licensed under the
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+
+https://creativecommons.org/licenses/by-sa/4.0/
 ---
 
 *Course version: 1.0 — RHEL 10 — February 2026 — All 13 modules complete*
+
+
+© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0
