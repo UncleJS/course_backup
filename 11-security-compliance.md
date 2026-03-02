@@ -1,4 +1,7 @@
 # Module 11 — Backup Security and Compliance
+[![CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey)](./LICENSE.md)
+[![RHEL 10](https://img.shields.io/badge/platform-RHEL%2010-red)](https://access.redhat.com/products/red-hat-enterprise-linux)
+[![Backup](https://img.shields.io/badge/Backup-RHEL%2010-blue)](https://access.redhat.com/products/red-hat-enterprise-linux)
 
 ## Learning Objectives
 
@@ -1011,4 +1014,4 @@ echo "Self-assessment: ${PASS} checks passed, ${FAIL} checks failed"
 
 8. The lab used keys named `backup_secrets`, `backup_storage`, and `backup_exec`. Naming audit rules with meaningful keys makes searching and reporting much easier: `ausearch -k backup_secrets` immediately filters to all events matching that key, without having to search by path or syscall across an unfiltered audit log.
 
-© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0
+© 2026 UncleJS — Licensed under CC BY-NC-SA 4.0

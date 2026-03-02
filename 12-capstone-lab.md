@@ -1,4 +1,7 @@
 # Module 12 — Capstone Lab: Full Disaster Recovery Scenario
+[![CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey)](./LICENSE.md)
+[![RHEL 10](https://img.shields.io/badge/platform-RHEL%2010-red)](https://access.redhat.com/products/red-hat-enterprise-linux)
+[![Backup](https://img.shields.io/badge/Backup-RHEL%2010-blue)](https://access.redhat.com/products/red-hat-enterprise-linux)
 
 ## Overview
 
@@ -1079,4 +1082,4 @@ CAPSTONE (Module 12)
 
 **Congratulations. You now have the knowledge and hands-on experience to design, implement, test, and maintain enterprise-grade backup and disaster recovery systems on RHEL 10.**
 
-© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0
+© 2026 UncleJS — Licensed under CC BY-NC-SA 4.0

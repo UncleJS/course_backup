@@ -1,4 +1,7 @@
 # Module 05 — LVM Snapshots — Consistent Pre-Backup Freezes
+[![CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey)](./LICENSE.md)
+[![RHEL 10](https://img.shields.io/badge/platform-RHEL%2010-red)](https://access.redhat.com/products/red-hat-enterprise-linux)
+[![Backup](https://img.shields.io/badge/Backup-RHEL%2010-blue)](https://access.redhat.com/products/red-hat-enterprise-linux)
 
 ## Learning Objectives
 
@@ -681,4 +684,4 @@ sudo cat /var/log/lvm-snapshot-backup.log
 *Previous: [04 — dump / xfsdump](04-dump-restore.md)*
 *Next: [06 — Restic](06-restic.md)*
 
-© 2026 Jaco Steyn — Licensed under CC BY-SA 4.0
+© 2026 UncleJS — Licensed under CC BY-NC-SA 4.0
