@@ -1132,4 +1132,11 @@ restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
 
 8. `systemctl list-timers --all`
 
+[↑ Table of Contents](#table-of-contents)
+
+---
+
+*Previous: [08 — Amanda](08-amanda.md)*
+*Next: [10 — Restore Testing and Disaster Recovery Drills](10-restore-testing.md)*
+
 © 2026 UncleJS — Licensed under CC BY-NC-SA 4.0

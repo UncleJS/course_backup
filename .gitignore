@@ -1,0 +1,46 @@
+# Environment and secrets
+.env
+.env.example
+.env.local
+.env.*.local
+
+# Config files that may contain credentials / passwords
+config.yml
+config.yaml
+config.json
+secrets.yml
+secrets.yaml
+secrets.json
+credentials.yml
+credentials.yaml
+credentials.json
+*.conf.local
+*.cfg.local
+
+# Common credential file patterns
+*password*
+*passwd*
+*secret*
+*credentials*
+*token*
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+id_ecdsa
+*.ppk
+
+# OS and editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Temporary / build outputs
+*.tmp
+*.log

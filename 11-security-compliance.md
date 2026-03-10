@@ -1014,4 +1014,11 @@ echo "Self-assessment: ${PASS} checks passed, ${FAIL} checks failed"
 
 8. The lab used keys named `backup_secrets`, `backup_storage`, and `backup_exec`. Naming audit rules with meaningful keys makes searching and reporting much easier: `ausearch -k backup_secrets` immediately filters to all events matching that key, without having to search by path or syscall across an unfiltered audit log.
 
+[↑ Table of Contents](#table-of-contents)
+
+---
+
+*Previous: [10 — Restore Testing and Disaster Recovery Drills](10-restore-testing.md)*
+*Next: [12 — Capstone Lab: Full Disaster Recovery Scenario](12-capstone-lab.md)*
+
 © 2026 UncleJS — Licensed under CC BY-NC-SA 4.0

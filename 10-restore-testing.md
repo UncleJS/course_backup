@@ -946,4 +946,11 @@ chmod 700 /usr/local/sbin/smoke-test.sh
    - Time from OS boot to all smoke tests passing (T_boot → T_ok)
    Total RTO = T_ok − T₀
 
+[↑ Table of Contents](#table-of-contents)
+
+---
+
+*Previous: [09 — Backup Strategy and Automation](09-strategy-automation.md)*
+*Next: [11 — Backup Security and Compliance](11-security-compliance.md)*
+
 © 2026 UncleJS — Licensed under CC BY-NC-SA 4.0

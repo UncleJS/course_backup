@@ -1082,4 +1082,10 @@ CAPSTONE (Module 12)
 
 **Congratulations. You now have the knowledge and hands-on experience to design, implement, test, and maintain enterprise-grade backup and disaster recovery systems on RHEL 10.**
 
+[↑ Table of Contents](#table-of-contents)
+
+---
+
+*Previous: [11 — Backup Security and Compliance](11-security-compliance.md)*
+
 © 2026 UncleJS — Licensed under CC BY-NC-SA 4.0
