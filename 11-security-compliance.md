@@ -127,10 +127,10 @@ tar -czp \
 | gpg --encrypt \
       --recipient backup@example.com \
       --trust-model always \
-      --output /mnt/backup/etc-$(date +%Y%m%d).tar.gz.gpg
+      --output /backup/etc-$(date +%Y%m%d).tar.gz.gpg
 
 # Verify the encrypted file is not readable without the key
-file /mnt/backup/etc-$(date +%Y%m%d).tar.gz.gpg
+file /backup/etc-$(date +%Y%m%d).tar.gz.gpg
 # Output: OpenPGP Public Key Encrypted Session Key Packet ...
 ```
 
@@ -138,14 +138,14 @@ file /mnt/backup/etc-$(date +%Y%m%d).tar.gz.gpg
 
 ```bash
 # Decrypt (requires secret key; run on machine with access to private key)
-gpg --decrypt /mnt/backup/etc-20260224.tar.gz.gpg \
+gpg --decrypt /backup/etc-20260224.tar.gz.gpg \
 | tar -xzp \
       --xattrs --xattrs-include='*' --selinux --acls \
       -C /restore/staging/
 
 # Or: decrypt to file first, then restore
 gpg --output /tmp/etc-20260224.tar.gz \
-    --decrypt /mnt/backup/etc-20260224.tar.gz.gpg
+    --decrypt /backup/etc-20260224.tar.gz.gpg
 
 tar -xzf /tmp/etc-20260224.tar.gz \
     --xattrs --xattrs-include='*' --selinux --acls \
@@ -161,7 +161,7 @@ rm -f /tmp/etc-20260224.tar.gz
 # /usr/local/sbin/backup-gpg.sh
 set -euo pipefail
 
-BACKUP_DIR="/mnt/backup/gpg"
+BACKUP_DIR="/backup/gpg"
 GPG_RECIPIENT="backup@example.com"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
@@ -200,7 +200,7 @@ Restic encrypts all data before it leaves the client using AES-256-CTR with a MA
 ### 3.1 How Restic encryption works
 
 - Every pack file (chunks of backed-up data) is encrypted with AES-256
-- Encryption key is derived from the repository password using `scrypt`
+- The master key is random; it is stored wrapped (encrypted) by a key derived from the repository password using `scrypt`
 - Even the repository index and snapshot metadata are encrypted
 - The backup server only ever sees ciphertext — it cannot read backed-up data
 - Password can be changed without re-encrypting all data (`restic key` command)
@@ -218,18 +218,18 @@ ls -l /etc/backup/restic-password
 # -rw------- 1 root root 34 Feb 24 10:00 /etc/backup/restic-password
 
 # List keys in repository
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password key list
+restic --repo /backup/restic --password-file /etc/backup/restic-password key list
 
 # Add a second key (e.g., recovery key)
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password key add
+restic --repo /backup/restic --password-file /etc/backup/restic-password key add
 # Enter new password when prompted (store this in your key escrow)
 
 # Change the primary password
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
+restic --repo /backup/restic --password-file /etc/backup/restic-password \
     key passwd
 
 # Remove old key after password change
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
+restic --repo /backup/restic --password-file /etc/backup/restic-password \
     key remove <key-id>
 ```
 
@@ -237,11 +237,11 @@ restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
 
 ```bash
 # The repository data directory contains only encrypted pack files
-ls -lh /mnt/backup/restic/data/
+ls -lh /backup/restic/data/
 # Output: directories with hex names containing .pack files
 
 # Attempting to read a pack file directly shows ciphertext
-xxd /mnt/backup/restic/data/ab/abcd1234... | head
+xxd /backup/restic/data/ab/abcd1234... | head
 # Output: binary garbage — encrypted content
 ```
 
@@ -316,34 +316,36 @@ sshd -t && systemctl reload sshd
 
 ```bash
 # Create backup directory hierarchy
-mkdir -p /mnt/backup/{restic,gpg,rsync,xfsdump}
-chown -R root:root /mnt/backup
-chmod 700 /mnt/backup
+mkdir -p /backup/{restic,gpg,rsync,xfsdump}
+chown -R root:root /backup
+chmod 700 /backup
 
 # Restic repo (only root can read/write)
-chmod 700 /mnt/backup/restic
+chmod 700 /backup/restic
 
 # GPG archives (root write, backup group read)
 groupadd backupreaders 2>/dev/null || true
-chmod 750 /mnt/backup/gpg
-chgrp backupreaders /mnt/backup/gpg
+chmod 750 /backup/gpg
+chgrp backupreaders /backup/gpg
 
 # Verify
-ls -la /mnt/backup/
+ls -la /backup/
 ```
 
 ### 5.2 SELinux context for backup directories
 
 ```bash
 # Check default context for /mnt
-ls -dZ /mnt/backup/
+ls -dZ /backup/
 
-# Set appropriate SELinux context
-semanage fcontext -a -t backup_t "/mnt/backup(/.*)?"
-restorecon -Rv /mnt/backup/
+# Set an appropriate SELinux context. NOTE: there is no generic 'backup_t'
+# type in the RHEL targeted policy — use an existing type (var_t shown here),
+# or create a custom type via a policy module for real isolation
+semanage fcontext -a -t var_t "/backup(/.*)?"
+restorecon -Rv /backup/
 
 # Verify
-ls -dZ /mnt/backup/restic/
+ls -dZ /backup/restic/
 
 # If using NFS for backup storage, use the NFS context
 semanage fcontext -a -t nfs_t "/mnt/nfs_backup(/.*)?"
@@ -352,17 +354,21 @@ semanage fcontext -a -t nfs_t "/mnt/nfs_backup(/.*)?"
 ### 5.3 Immutable flag to prevent ransomware deletion
 
 ```bash
-# Make backup directory structure immutable to all users including root
-# (must be removed to add new backups — use in restore-only copies)
-chattr +i /mnt/backup/
-lsattr -d /mnt/backup/
+# Make a SEALED ARCHIVE COPY immutable — never the live backup root, or the
+# next backup run fails the moment it tries to write
+chattr +i /backup/archive-2026Q1/
+lsattr -d /backup/archive-2026Q1/
 
-# For append-only (new files can be added, existing cannot be modified/deleted)
-chattr +a /mnt/backup/restic/data/
-lsattr -d /mnt/backup/restic/data/
+# Append-only on a log-style directory (new files OK, existing protected)
+chattr +a /backup/logs/
+lsattr -d /backup/logs/
+
+# ⚠️ Do NOT chattr +a a restic repo's data/ directory — 'restic prune' must
+# delete and rewrite pack files there. For restic immutability use
+# rest-server --append-only or S3/MinIO object locking instead (Section 7).
 
 # Remove immutable flag (requires root)
-chattr -i /mnt/backup/
+chattr -i /backup/archive-2026Q1/
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -382,7 +388,7 @@ cat > /etc/audit/rules.d/backup.rules << 'EOF'
 -w /etc/backup/ -p rwxa -k backup_secrets
 
 # Log all writes and deletions in backup storage
--w /mnt/backup/ -p wa -k backup_storage
+-w /backup/ -p wa -k backup_storage
 
 # Log execution of backup scripts
 -w /usr/local/sbin/backup-master.sh -p x -k backup_exec
@@ -394,7 +400,7 @@ cat > /etc/audit/rules.d/backup.rules << 'EOF'
 
 # Log any attempt to remove backup archives
 -a always,exit -F arch=b64 -S unlinkat -S rename -S renameat \
-    -F dir=/mnt/backup -F success=1 -k backup_delete
+    -F dir=/backup -F success=1 -k backup_delete
 EOF
 
 augenrules --load
@@ -516,8 +522,10 @@ MinIO was covered in full in Module 06. Key security additions:
 # Create a bucket with object locking enabled (immutable backups)
 mc mb --with-lock myminio/backup-immutable
 
-# Set governance-mode retention (30 days — prevents deletion for 30 days)
-mc retention set --default GOVERNANCE 30d myminio/backup-immutable
+# Set retention (30 days). GOVERNANCE mode can be bypassed by any identity
+# holding s3:BypassGovernanceRetention — for tamper-proof, ransomware-grade
+# immutability use COMPLIANCE mode (nobody can shorten it, not even root):
+mc retention set --default COMPLIANCE 30d myminio/backup-immutable
 
 # Create a dedicated MinIO policy for the backup user (write-only, no delete)
 cat > /tmp/backup-policy.json << 'EOF'
@@ -543,7 +551,7 @@ mc admin policy attach myminio backup-write --user backupwriter
 # Nightly off-site push of local backup to remote site
 rsync -aAXH --delete \
     -e "ssh -i /root/.ssh/backup_ed25519 -p 22022 -o StrictHostKeyChecking=yes" \
-    /mnt/backup/restic/ \
+    /backup/restic/ \
     backupuser@offsite.example.com:/remote-backup/restic/
 
 # Verify remote copy is consistent
@@ -576,7 +584,7 @@ ssh -i /root/.ssh/backup_ed25519 backupuser@offsite.example.com \
 # 3. Track retention per backup set; delete expired backups on schedule
 # Restic example: expire PII backups after 1 year
 restic forget \
-    --repo /mnt/backup/restic-pii \
+    --repo /backup/restic-pii \
     --password-file /etc/backup/restic-pii-password \
     --keep-yearly 1 \
     --prune
@@ -597,7 +605,8 @@ restic forget \
 grep -rl "BEGIN.*PRIVATE KEY" /etc/ 2>/dev/null
 
 # Find files that might contain passwords in clear text (heuristic)
-grep -rn "password\s*=\s*['\"]" /etc/ 2>/dev/null | grep -v "^Binary"
+# (-P enables \s; -I skips binary files)
+grep -rnPI "password\s*=\s*['\"]" /etc/ 2>/dev/null
 
 # Find world-readable files in /etc that shouldn't be
 find /etc -maxdepth 2 -perm /o+r -name "*.conf" -exec ls -la {} \;
@@ -645,13 +654,13 @@ gpg --list-secret-keys backup@example.com
 
 ```bash
 # Confirm the password file works (annual test in DR drill)
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     snapshots
 
 # If password file is lost: use the secondary password from key escrow
 echo "secondary-password-from-escrow" | \
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-command "cat /dev/stdin" \
     snapshots
 ```
@@ -667,7 +676,7 @@ restic --repo /mnt/backup/restic \
 ```bash
 # Get fingerprint of backup server before connecting
 ssh-keyscan -t ed25519 192.168.100.10 | ssh-keygen -lf -
-# Output: 256 SHA256:xxxx backupuser@192.168.100.10 (ED25519)
+# Output: 256 SHA256:xxxx 192.168.100.10 (ED25519)
 
 # Compare with known fingerprint from secure channel
 # Then add to known_hosts:
@@ -701,7 +710,7 @@ rest-server \
     --tls \
     --tls-cert /etc/pki/backup/server.crt \
     --tls-key  /etc/pki/backup/server.key \
-    --path /mnt/backup/rest-server \
+    --path /backup/rest-server \
     --listen 0.0.0.0:8000 \
     --htpasswd-file /etc/backup/rest-users
 
@@ -769,7 +778,7 @@ TESTING
 
 - Module 06 (Restic) completed
 - GPG installed: `dnf install -y gnupg2`
-- Working restic repository at `/mnt/backup/restic`
+- Working restic repository at `/backup/restic`
 
 [↑ Table of Contents](#table-of-contents)
 
@@ -782,10 +791,10 @@ TESTING
 ```bash
 [server]# gpg --batch --gen-key << 'EOF'
 %no-protection
-Key-Type: ECDSA
-Key-Curve: nistp256
+Key-Type: EDDSA
+Key-Curve: ed25519
 Subkey-Type: ECDH
-Subkey-Curve: nistp256
+Subkey-Curve: cv25519
 Name-Real: Lab Backup Key
 Name-Email: backup-lab@localhost
 Expire-Date: 0
@@ -802,16 +811,16 @@ gpg --list-keys backup-lab@localhost
 | gpg --batch --encrypt \
       --recipient backup-lab@localhost \
       --trust-model always \
-      --output /mnt/backup/lab11-test.tar.gz.gpg
+      --output /backup/lab11-test.tar.gz.gpg
 
-ls -lh /mnt/backup/lab11-test.tar.gz.gpg
-file /mnt/backup/lab11-test.tar.gz.gpg
+ls -lh /backup/lab11-test.tar.gz.gpg
+file /backup/lab11-test.tar.gz.gpg
 ```
 
 **Step 3:** Decrypt and restore.
 
 ```bash
-[server]# gpg --decrypt /mnt/backup/lab11-test.tar.gz.gpg \
+[server]# gpg --decrypt /backup/lab11-test.tar.gz.gpg \
 | tar -xzp --xattrs --xattrs-include='*' --selinux -C /restore/staging/
 diff /etc/hostname /restore/staging/etc/hostname && echo "GPG restore: OK"
 ```
@@ -835,7 +844,7 @@ chmod 600 /etc/backup/restic-password
 **Step 2:** Add a recovery key to the restic repository.
 
 ```bash
-[server]# restic --repo /mnt/backup/restic \
+[server]# restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     key list
 
@@ -843,18 +852,18 @@ chmod 600 /etc/backup/restic-password
 echo "lab-recovery-password-$(openssl rand -hex 8)" > /etc/backup/restic-recovery-password
 chmod 600 /etc/backup/restic-recovery-password
 
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     key add \
     --new-password-file /etc/backup/restic-recovery-password
 
 # Confirm two keys exist
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     key list
 
 # Test recovery key works
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-recovery-password \
     snapshots | head -5
 echo "Recovery key: OK"
@@ -871,7 +880,7 @@ echo "Recovery key: OK"
 ```bash
 [server]# cat > /etc/audit/rules.d/backup.rules << 'EOF'
 -w /etc/backup/ -p rwxa -k backup_secrets
--w /mnt/backup/ -p wa -k backup_storage
+-w /backup/ -p wa -k backup_storage
 -w /usr/local/sbin/backup-master.sh -p x -k backup_exec
 -w /usr/bin/restic -p x -k backup_exec
 EOF
@@ -894,7 +903,7 @@ ausearch -k backup_secrets --start recent | tail -20
 **Step 3:** Run a backup and check audit log for restic execution.
 
 ```bash
-[server]# restic --repo /mnt/backup/restic \
+[server]# restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     snapshots > /dev/null
 
@@ -909,25 +918,25 @@ ausearch -k backup_exec --start recent | tail -10
 
 ```bash
 [server]# # Create a separate "archive" directory that is append-only
-mkdir -p /mnt/backup/archive
-chattr +a /mnt/backup/archive
-lsattr -d /mnt/backup/archive
-# Output: -----a--------e------- /mnt/backup/archive
+mkdir -p /backup/archive
+chattr +a /backup/archive
+lsattr -d /backup/archive
+# Output: -----a--------e------- /backup/archive
 
 # Test: appending works (create new file)
-touch /mnt/backup/archive/testfile && echo "Create: OK"
+touch /backup/archive/testfile && echo "Create: OK"
 
 # Test: modifying existing file is denied
-echo "test" >> /mnt/backup/archive/testfile \
+echo "test" >> /backup/archive/testfile \
     && echo "Append to file: OK (this is allowed with +a on directory)"
 
 # Test: deleting existing file is denied
-rm /mnt/backup/archive/testfile 2>&1 | grep -q "Operation not permitted" \
+rm /backup/archive/testfile 2>&1 | grep -q "Operation not permitted" \
     && echo "Delete denied: OK"
 
 # Cleanup for lab
-chattr -a /mnt/backup/archive
-rm -f /mnt/backup/archive/testfile
+chattr -a /backup/archive
+rm -f /backup/archive/testfile
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -949,8 +958,8 @@ fail() { echo "[FAIL] $*"; ((FAIL++)); }
     && ok "restic-password is chmod 600" || fail "restic-password permissions wrong"
 
 # Backup directory permissions
-[[ "$(stat -c '%a' /mnt/backup 2>/dev/null)" == "700" ]] \
-    && ok "/mnt/backup is chmod 700" || fail "/mnt/backup permissions wrong"
+[[ "$(stat -c '%a' /backup 2>/dev/null)" == "700" ]] \
+    && ok "/backup is chmod 700" || fail "/backup permissions wrong"
 
 # SELinux enforcing
 sestatus | grep -q "enforcing" && ok "SELinux enforcing" || fail "SELinux not enforcing"
@@ -962,7 +971,7 @@ systemctl is-active --quiet auditd && ok "auditd running" || fail "auditd not ru
 auditctl -l | grep -q "backup_secrets" && ok "backup audit rules loaded" || fail "backup audit rules missing"
 
 # Restic repo is encrypted (check for key files)
-[[ -d /mnt/backup/restic/keys ]] && ok "restic keys directory exists" || fail "restic repo not initialised"
+[[ -d /backup/restic/keys ]] && ok "restic keys directory exists" || fail "restic repo not initialised"
 
 echo ""
 echo "Self-assessment: ${PASS} checks passed, ${FAIL} checks failed"

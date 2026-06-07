@@ -51,7 +51,7 @@ By the end of this module you will be able to:
   - [10.1 Configure SFTP access](#101-configure-sftp-access)
   - [10.2 Initialise SFTP repository](#102-initialise-sftp-repository)
   - [10.3 Backup to SFTP](#103-backup-to-sftp)
-  - [10.4 Store SFTP options in a config file](#104-store-sftp-options-in-a-config-file)
+  - [10.4 Store SFTP options in SSH config](#104-store-sftp-options-in-ssh-config)
 - [11. Backend C: AWS S3](#11-backend-c-aws-s3)
   - [11.1 Prerequisites](#111-prerequisites)
   - [11.2 Minimal IAM policy for Restic](#112-minimal-iam-policy-for-restic)
@@ -132,9 +132,9 @@ If EPEL's version is behind:
 ```bash
 # Download latest binary from GitHub releases
 # Check https://github.com/restic/restic/releases for latest version
-RESTIC_VERSION="0.17.3"
+RESTIC_VERSION="0.18.1"
 curl -L "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2" \
-  | bunzip2 > /usr/local/bin/restic
+  | bunzip2 | sudo tee /usr/local/bin/restic > /dev/null
 
 sudo chmod +x /usr/local/bin/restic
 
@@ -144,8 +144,10 @@ restic version
 
 ### 2.3 Enable auto-update (optional)
 
+> **Only for the manually-installed binary (§2.2).** Never run `self-update` on a dnf/EPEL-installed restic — it overwrites the RPM-owned `/usr/bin/restic`, breaking package ownership, and the next `dnf update` clobbers it again. EPEL installs are updated via `dnf` only.
+
 ```bash
-# Restic can update itself
+# Restic can update itself (manual /usr/local/bin install only)
 sudo restic self-update
 ```
 
@@ -183,7 +185,9 @@ Internally, Restic chunks data into variable-size **blobs**, groups them into **
 
 ### Password / Key
 
-The repository is encrypted with a key derived from a password. The password is never stored — you must provide it every time. Multiple keys can be stored in a repository (useful for team access).
+The repository master key is random; it is stored in the repo encrypted ("wrapped") by a key derived from your password using **scrypt**. The password is never stored — you must provide it every time. Multiple keys can be stored in a repository (useful for team access).
+
+> **⚠️ A lost password is unrecoverable.** There is no reset, no backdoor, no support escalation — if every password/key for a repository is lost, the data in it is permanently gone. Escrow the password (e.g., in a password manager and a sealed offline copy) before trusting the repository with real data.
 
 [↑ Table of Contents](#table-of-contents)
 
@@ -369,7 +373,7 @@ sudo -E restic tag --set "monthly,2026" a1b2c3d4
 
 ## 8. Forget and Prune — Retention Policy
 
-Restic separates **forgetting** (removing snapshot metadata) from **pruning** (removing actual data).
+Restic separates **forgetting** (deleting snapshot references) from **pruning** (removing the now-unreferenced data packs). `forget` really deletes the snapshot files immediately — but the underlying data stays until `prune` runs.
 
 ### 8.1 forget — remove snapshots per policy
 
@@ -499,15 +503,24 @@ sudo -E restic \
   --verbose
 ```
 
-### 10.4 Store SFTP options in a config file
+### 10.4 Store SFTP options in SSH config
 
-To avoid repeating `-o sftp.args=...`, use a Restic environment file:
+Restic has no environment variable for SFTP arguments — instead of repeating `-o sftp.args=...`, configure the connection once in `~/.ssh/config` (for root: `/root/.ssh/config`):
+
+```
+# /root/.ssh/config
+Host backup-server
+    User backupuser
+    IdentityFile /root/.ssh/restic_sftp_key
+    StrictHostKeyChecking accept-new
+```
+
+Then a plain environment file is enough:
 
 ```bash
 # /etc/backup/restic-env-sftp
 export RESTIC_REPOSITORY="sftp:backupuser@backup-server:/backup/restic/$(hostname)"
 export RESTIC_PASSWORD_FILE="/etc/backup/restic-password"
-export RESTIC_SFTP_ARGS="-i /root/.ssh/restic_sftp_key -o StrictHostKeyChecking=no"
 ```
 
 ```bash
@@ -622,7 +635,7 @@ MinIO is an open-source, self-hosted S3-compatible object store. It runs on RHEL
 sudo dnf install -y wget
 
 # Download MinIO server binary
-wget https://dl.min.io/server/minio/release/linux-amd64/minio -O /usr/local/bin/minio
+sudo wget https://dl.min.io/server/minio/release/linux-amd64/minio -O /usr/local/bin/minio
 sudo chmod +x /usr/local/bin/minio
 
 # Create data directory
@@ -672,7 +685,7 @@ sudo firewall-cmd --reload
 
 ```bash
 # Install MinIO client (mc)
-wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
+sudo wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
 sudo chmod +x /usr/local/bin/mc
 
 # Configure mc to point at local MinIO
@@ -1045,7 +1058,7 @@ sudo cat /var/log/restic-backup.log
 
 1. Restic uses **AES-256-CTR** for data encryption and **Poly1305-AES** for authentication (authenticated encryption). It **cannot be disabled** — all data is always encrypted. There is no unencrypted repository mode.
 2. **Content-defined chunking (CDC)** splits file data into variable-size chunks at content-defined boundaries. The same content in different files (or the same file across snapshots) produces the same chunks with the same hash. These identical chunks are stored only once, regardless of how many snapshots reference them.
-3. `restic forget` removes **snapshot metadata** according to a retention policy — it marks old snapshots as deleted but does not free disk space. `restic prune` scans the repository and removes **actual data packs** that are no longer referenced by any remaining snapshot. Both are needed: forget removes the references, prune removes the data.
+3. `restic forget` **deletes snapshot files (the references)** according to a retention policy — but it does not free disk space. `restic prune` scans the repository and removes **actual data packs** that are no longer referenced by any remaining snapshot. Both are needed: forget removes the references, prune removes the data.
 4. `RESTIC_REPOSITORY` (the repo URL), `RESTIC_PASSWORD` or `RESTIC_PASSWORD_FILE` (the decryption password). For S3/MinIO: also `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
 5. `restic check`. Without `--read-data`: verifies index integrity and that all referenced packs exist (fast — metadata only). With `--read-data`: downloads and verifies the actual content of all data packs (slow — reads everything). `--read-data-subset=N%` is a good middle ground.
 6. `restic restore SNAPSHOT_ID --include /path/to/dir --target /destination/` — restores only files whose path starts with the specified prefix.

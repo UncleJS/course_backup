@@ -30,7 +30,7 @@ from theory through hands-on implementation to enterprise-grade deployment.
 | OS | RHEL 10 (or compatible: AlmaLinux 10, Rocky Linux 10) |
 | Access | Root or sudo privileges |
 | Networking | Two machines recommended for client/server labs (VMs acceptable) |
-| Storage | A second disk or LVM volume for practice (`/dev/sdb` used throughout) |
+| Storage | A second disk or LVM volume for practice (`/dev/sdb` used in the lab setup below) |
 | Packages | `dnf` access (local mirror or internet) |
 
 ---
@@ -124,6 +124,7 @@ Add these to `/etc/hosts` on both machines:
 - Config blocks show **every directive** with inline comments (`# explanation`)
 - Each module ends with **Lab Exercises** and **Review Questions**
 - Answers to Review Questions are provided at the bottom of each module
+- Exception: Module 12 is a hands-on capstone structured as phases with completion checklists — it has no Review Questions section by design
 
 ---
 

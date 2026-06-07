@@ -42,7 +42,6 @@ By the end of this module you will be able to:
   - [Basic `--link-dest` usage](#basic---link-dest-usage)
   - [What if yesterday's snapshot doesn't exist?](#what-if-yesterdays-snapshot-doesnt-exist)
 - [8. Production Snapshot Backup Script](#8-production-snapshot-backup-script)
-  - [Configuration ###](#configuration-)
 - [9. Bandwidth Limiting](#9-bandwidth-limiting)
 - [10. Partial Transfers and Resume](#10-partial-transfers-and-resume)
 - [11. rsync Daemon Mode (Alternative to SSH)](#11-rsync-daemon-mode-alternative-to-ssh)
@@ -140,7 +139,7 @@ rsync --version
 | `--progress` | Show per-file transfer progress |
 | `--stats` | Print file transfer statistics at end |
 | `--partial` | Keep partial files (resume interrupted transfers) |
-| `--bwlimit=RATE` | Limit bandwidth (e.g., `--bwlimit=10m` = 10 MB/s) |
+| `--bwlimit=RATE` | Limit bandwidth (e.g., `--bwlimit=10m` = 10 MiB/s — suffixes are binary units) |
 | `--timeout=SECONDS` | Set I/O timeout |
 
 ### Path and filter flags
@@ -167,8 +166,8 @@ rsync -av /etc /backup/
 # Result: /backup/etc/passwd, /backup/etc/hostname ...
 
 # WITH trailing slash on source: copies the CONTENTS of the directory
-rsync -av /etc/ /backup/etc/
-# Result: /backup/etc/passwd, /backup/etc/hostname ...
+rsync -av /etc/ /backup/
+# Result: /backup/passwd, /backup/hostname ...   ← contents land directly in /backup/!
 ```
 
 **Rule:** 
@@ -268,13 +267,9 @@ sudo ssh -i /root/.ssh/backup_key root@backup-client hostname
 
 ### Restrict backup key to rsync only (security hardening)
 
-In `/root/.ssh/authorized_keys` on the client, prefix the key with restrictions:
+In `/root/.ssh/authorized_keys` on the client, prefix the key with a forced command. Use `rrsync` (restricted rsync), which limits the key to a specific directory and works with the normal SSH-transport rsync used throughout this module:
 
-```
-command="rsync --server --daemon .",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAA... backup-automation
-```
-
-Or use `rrsync` (restricted rsync) which limits the key to a specific directory:
+> **Note:** you may see `command="rsync --server --daemon ."` in older guides — that forces *daemon-over-SSH* mode and breaks ordinary `rsync -e ssh` transfers like the ones above. Use `rrsync` instead.
 
 ```bash
 # Install rrsync if available, or copy from rsync source
@@ -387,15 +382,17 @@ EXCLUDES=(
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"; }
 
-# SSH options for remote
+# SSH options for remote — build as an array so the ssh command stays ONE
+# argument to -e (an unquoted string would word-split and rsync would
+# swallow -p/-i itself, silently dropping the port and key)
 if [[ -n "${REMOTE_HOST}" ]]; then
-  SSH_OPTS="-e ssh -p ${REMOTE_PORT} -i ${SSH_KEY} -o StrictHostKeyChecking=no"
+  SSH_OPTS=(-e "ssh -p ${REMOTE_PORT} -i ${SSH_KEY} -o StrictHostKeyChecking=no")
   DEST_BASE="${REMOTE_HOST}:${BACKUP_ROOT}/${HOST}"
   # Create remote directories
   ssh -p "${REMOTE_PORT}" -i "${SSH_KEY}" "${REMOTE_HOST}" \
     "mkdir -p ${BACKUP_ROOT}/${HOST}/${TODAY}"
 else
-  SSH_OPTS=""
+  SSH_OPTS=()
   DEST_BASE="${BACKUP_ROOT}/${HOST}"
   mkdir -p "${DEST_BASE}/${TODAY}"
 fi
@@ -412,8 +409,8 @@ for SRC in "${SOURCES[@]}"; do
   log "Syncing ${SRC} → ${DEST}"
 
   rsync -aAXhz --delete --numeric-ids \
-    ${SSH_OPTS} \
-    ${EXCLUDES[@]} \
+    "${SSH_OPTS[@]}" \
+    "${EXCLUDES[@]}" \
     --link-dest="${LINKDEST}" \
     "${SRC}/" \
     "${DEST}/" \
@@ -448,9 +445,9 @@ For backups over metered or congested links:
 # Limit to 50 MB/s
 rsync -aAXvz --delete --bwlimit=50m /etc/ backup-server:/backup/etc/
 
-# For very slow links (2 MB/s)
+# For very slow links (2 MiB/s), with SSH compression
 rsync -aAXvz --delete --bwlimit=2m \
-  -e "ssh -C"  \          # SSH compression
+  -e "ssh -C" \
   /etc/ backup-server:/backup/etc/
 ```
 
@@ -642,7 +639,7 @@ du -sh /backup/lab_snapshots/2026-02-18/
 
 ```bash
 # On backup-server (receiver):
-sudo mkdir -p /backup/clients/$(hostname -s from client)
+sudo mkdir -p /backup/clients/backup-client   # use the client's short hostname
 
 # On backup-client (sender):
 # 1. Generate SSH key
@@ -686,7 +683,7 @@ ls -la /backup/snapshots/$(hostname -s)/
 4. What is the difference between pushing and pulling backups, and which is considered more secure?
 5. Why is `--delete` important for backups, and what risk does it carry?
 6. What does `--dry-run` do and when should you use it?
-7. What three flags preserve SELinux labels, ACLs, and extended attributes in rsync?
+7. Which rsync flags preserve SELinux labels, ACLs, and extended attributes?
 8. How do you restore a single file from an rsync snapshot backup?
 9. What is the difference between rsync SSH transport and rsync daemon mode?
 10. How do you verify that an rsync backup is complete and accurate?
@@ -703,7 +700,7 @@ ls -la /backup/snapshots/$(hostname -s)/
 4. **Push** = client sends data to server. **Pull** = server fetches from client. Pull is more secure because the backup server initiates connections; a compromised client cannot reach into the backup server to modify or delete backups.
 5. `--delete` removes files from the destination that no longer exist in the source, keeping the backup a true mirror. Risk: if run incorrectly (wrong paths) it will delete valid backup data. Always test with `--dry-run` first.
 6. `--dry-run` (`-n`) shows exactly what rsync would do (transfers, deletions, renames) without actually doing it. Use before any destructive or large sync, especially with `--delete`.
-7. `-A` (`--acls`), `-X` (`--xattrs`), `--numeric-ids` for numeric ownership. The SELinux context is stored as an xattr, so `-X` covers SELinux.
+7. `-A` (`--acls`) preserves ACLs and `-X` (`--xattrs`) preserves extended attributes. The SELinux context is stored as an xattr, so `-X` covers SELinux — rsync has no separate SELinux flag. (`--numeric-ids` is about ownership fidelity, not metadata preservation.)
 8. `cp /backup/snapshots/HOSTNAME/DATE/path/to/file /original/path/to/file` — rsync snapshots are plain directories; any single file can be copied directly using `cp` or `rsync`.
 9. **SSH transport** encrypts data in transit using SSH; slower due to encryption overhead but secure. **Daemon mode** uses the rsync protocol directly (port 873) without encryption; faster but only suitable for trusted internal networks.
 10. Run rsync again with `--checksum` and `--dry-run` — any output means the files differ. Also compare file counts between source and backup. For deep verification, use `diff -rq`.

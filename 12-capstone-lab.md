@@ -82,7 +82,10 @@ Before beginning the capstone:
 [ ] backup-client has a second disk /dev/sdb formatted as backupvg (Module 05 setup)
 [ ] Restic is installed on both machines (Module 06)
 [ ] /etc/backup/restic-password exists on backup-client with chmod 600
-[ ] SSH key-based access from backup-client to backup-server is working
+[ ] SSH key /root/.ssh/backup_ed25519 exists on backup-client and its public
+    key is authorized for backupuser@backup-server (this exact path is used
+    by the rsync/tar commands below — create it now if your earlier modules
+    used a different key name)
 [ ] This file is printed or accessible from a machine OTHER than backup-client
 [ ] You have at least 90 minutes of uninterrupted time
 ```
@@ -98,20 +101,14 @@ Before any failure simulation, document the current state of the target system. 
 ### Step 1.1 — Capture system inventory
 
 ```bash
-[client]# cat > /root/pre-disaster-inventory.txt << 'EOF_INVENTORY'
-=== SYSTEM INVENTORY — PRE-DISASTER ===
-DATE: $(date -Iseconds)
-HOSTNAME: $(hostname -f)
-OS: $(cat /etc/redhat-release)
-KERNEL: $(uname -r)
-UPTIME: $(uptime)
-EOF_INVENTORY
+[client]# echo "=== SYSTEM INVENTORY — PRE-DISASTER ===" > /root/pre-disaster-inventory.txt
 
-# Append live data
+# Append live data (a quoted heredoc would write literal $(...) placeholders)
 echo "DATE: $(date -Iseconds)"               >> /root/pre-disaster-inventory.txt
 echo "HOSTNAME: $(hostname -f)"              >> /root/pre-disaster-inventory.txt
 echo "OS: $(cat /etc/redhat-release)"       >> /root/pre-disaster-inventory.txt
 echo "KERNEL: $(uname -r)"                  >> /root/pre-disaster-inventory.txt
+echo "UPTIME: $(uptime)"                    >> /root/pre-disaster-inventory.txt
 ```
 
 ### Step 1.2 — Capture disk layout
@@ -192,7 +189,10 @@ You will create backups using three tools: **tar**, **rsync**, and **restic**. T
 
 ```bash
 [server]# mkdir -p /backup/{tar,rsync,restic,xfsdump}
-chmod 700 /backup
+# backupuser must be able to traverse and write — root-only 0700 would make
+# every scp/sftp/rsync transfer from the client fail with permission denied
+chown -R backupuser:backupuser /backup
+chmod 750 /backup
 
 # Initialize Restic repository
 restic init --repo /backup/restic \
@@ -280,16 +280,16 @@ echo "Restic backup complete."
 ### Step 2.5 — xfsdump of data volume (if present)
 
 ```bash
-[client]# if lvs /dev/backupvg/data &>/dev/null && mountpoint -q /mnt/data; then
+[client]# if lvs /dev/backupvg/datalv &>/dev/null && mountpoint -q /data; then
     echo "XFSDUMP_START=$(date -Iseconds)" >> /root/capstone-times.txt
     xfsdump -l 0 -L "capstone-$(date +%Y%m%d)" -M "capstone-media" \
-        -f - /mnt/data \
+        -f - /data \
     | ssh backupuser@192.168.100.10 \
         "cat > /backup/xfsdump/data-level0-$(date +%Y%m%d).dump"
     echo "XFSDUMP_END=$(date -Iseconds)" >> /root/capstone-times.txt
     echo "xfsdump complete."
 else
-    echo "No /dev/backupvg/data found or not mounted — skipping xfsdump."
+    echo "No /dev/backupvg/datalv found or /data not mounted — skipping xfsdump."
 fi
 ```
 
@@ -354,11 +354,18 @@ In your hypervisor (KVM/libvirt, VMware, VirtualBox):
 
 **Method B — Wipe the disk (destructive, most realistic)**
 ```bash
-[client]# # ⚠️ THIS DESTROYS ALL DATA ON /dev/sda ⚠️
+[client]# # ⚠️ THIS DESTROYS ALL DATA ON THE OS DISK ⚠️
 # ONLY run this if you are certain this is a dispensable VM
 # and have confirmed your backups on backup-server in Step 3.1
 
-# Overwrite the partition table and first sectors
+# PRE-FLIGHT: confirm which device the OS actually lives on — on VirtIO VMs
+# the boot disk is often /dev/vda, and /dev/sda may be your backupvg disk!
+lsblk -o NAME,SIZE,TYPE,MOUNTPOINTS
+findmnt -no SOURCE /          # the root device — wipe THIS disk, not another
+# Compare with the disk layout in pre-disaster-inventory.txt
+
+# Overwrite the partition table and first sectors of the OS disk
+# (replace /dev/sda with the device confirmed above)
 dd if=/dev/zero of=/dev/sda bs=1M count=10
 sync
 # Reboot into rescue media (system will no longer boot normally)
@@ -401,22 +408,23 @@ Boot the `backup-client` VM from RHEL 10 install ISO.
 - Select: **Skip to shell**
 
 ```bash
-# You are now in a minimal rescue shell
-ip link set eth0 up
-dhclient eth0    # or: ip addr add 192.168.100.20/24 dev eth0
-ping 192.168.100.10 && echo "Network: OK"
+# You are now in a minimal rescue shell.
+# Discover the NIC name first — RHEL 10 uses predictable names (enp1s0, ens3…)
+ip link
+ip link set enp1s0 up                       # substitute your NIC name
+ip addr add 192.168.100.20/24 dev enp1s0    # static (no dhclient on RHEL 10 media)
+ping -c2 192.168.100.10 && echo "Network: OK"
 ```
 
 #### Step A2 — Install restic in rescue environment
 
 ```bash
-# Download statically-linked restic binary
-curl -Lo /usr/local/bin/restic \
-    https://github.com/restic/restic/releases/latest/download/restic_linux_amd64.bz2
-# If bz2:
-bzip2 -d /usr/local/bin/restic.bz2 2>/dev/null || true
-curl -Lo /usr/local/bin/restic \
-    https://github.com/restic/restic/releases/latest/download/restic_linux_amd64
+# Download the statically-linked restic binary (GitHub ships it bz2-compressed;
+# pin the version — 'latest/download' needs the exact asset name)
+RESTIC_VERSION="0.18.1"
+curl -Lo /tmp/restic.bz2 \
+    "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2"
+bunzip2 -c /tmp/restic.bz2 > /usr/local/bin/restic
 chmod +x /usr/local/bin/restic
 
 # Verify
@@ -488,15 +496,20 @@ mount --bind /sys/firmware/efi/efivars /mnt/sysroot/sys/firmware/efi/efivars 2>/
 
 # Chroot
 chroot /mnt/sysroot /bin/bash << 'CHROOT'
-# Update fstab UUIDs if disk was reformatted
-blkid
-# Edit /etc/fstab if necessary to match new UUIDs from blkid output
+# The restored /etc/fstab references the OLD disks (old UUIDs, and the
+# backupvg /data volume that no longer exists). Fix it NOW or the first
+# boot will hang in emergency mode:
+blkid                                  # note the NEW root/EFI UUIDs
+vi /etc/fstab                          # 1) update UUID= entries to match blkid
+                                       # 2) comment out the /data (backupvg) line
+                                       #    until that VG is recreated
 
 # Reinstall GRUB for UEFI
 dnf reinstall -y grub2-efi grub2-tools shim 2>/dev/null || \
     grub2-install --target=x86_64-efi --efi-directory=/boot/efi
 
-grub2-mkconfig -o /boot/grub2/grub.cfg
+# UEFI: the live GRUB config is on the EFI partition
+grub2-mkconfig -o /boot/efi/EFI/redhat/grub.cfg
 
 # Rebuild initramfs
 dracut -f --regenerate-all
@@ -520,19 +533,22 @@ reboot
 After first boot (SELinux relabelling takes 5–15 min):
 
 ```bash
-[client]# echo "RESTIC_SYSTEM_UP=$(date -Iseconds)"
+[client]# # Record system-up time in the SERVER's timing file (Phase 5 reads it there)
+ssh backupuser@192.168.100.10 \
+    "echo RESTIC_SYSTEM_UP=$(date -Iseconds) >> /backup/capstone-times.txt"
 
 # Run smoke tests
 /usr/local/sbin/smoke-test.sh
 
-# Verify canary files
-for f in /etc/backup-canary.txt /root/backup-canary.txt; do
+# Verify canary files (same file set as Step 1.4)
+for f in /etc/backup-canary.txt /home/*/backup-canary.txt /root/backup-canary.txt; do
     [[ -f "$f" ]] && echo "FOUND: $f: $(cat $f)" || echo "MISSING: $f"
 done
 
-# Compare inventory
-diff <(cat /root/pre-disaster-inventory.txt | grep CANARY) \
-     <(for f in /etc/backup-canary.txt /root/backup-canary.txt; do
+# Compare inventory — grep the canary LINES only (not the section header),
+# and enumerate the identical file set on both sides
+diff <(grep 'backup-canary' /root/pre-disaster-inventory.txt) \
+     <(for f in /etc/backup-canary.txt /home/*/backup-canary.txt /root/backup-canary.txt; do
            echo "$f: $(cat $f 2>/dev/null || echo MISSING)"
        done)
 ```
@@ -574,6 +590,10 @@ ls /mnt/sysroot/
 
 #### Step B5 — Reboot and validate (same as Step A6)
 
+> Record this scenario's own timing keys in the server file, or Phase 5 prints N/A:
+> before B1 append a fresh `RECOVERY_START_TAR=...`, and after first boot
+> `ssh backupuser@192.168.100.10 "echo TAR_SYSTEM_UP=$(date -Iseconds) >> /backup/capstone-times.txt"`
+
 [↑ Table of Contents](#table-of-contents)
 
 ---
@@ -602,6 +622,9 @@ ls /mnt/sysroot/
 ```
 
 #### Step C3 — Rebuild bootloader and reboot (same as Steps A5–A6)
+
+> As with Scenario B: append a fresh `RECOVERY_START_RSYNC=...` before C1, and after
+> first boot `ssh backupuser@192.168.100.10 "echo RSYNC_SYSTEM_UP=$(date -Iseconds) >> /backup/capstone-times.txt"`
 
 [↑ Table of Contents](#table-of-contents)
 
@@ -643,9 +666,13 @@ print(f"rsync backup:  {diff('RSYNC_BACKUP_START',  'RSYNC_BACKUP_END')}")
 print(f"restic backup: {diff('RESTIC_BACKUP_START', 'RESTIC_BACKUP_END')}")
 print()
 print("=== Recovery times (RTO per method) ===")
+# Each scenario records its own start key (fresh disaster per scenario);
+# RECOVERY_START is the Scenario A start
+def start_for(specific):
+    return specific if specific in times else 'RECOVERY_START'
 print(f"restic restore:  {diff('RECOVERY_START', 'RESTIC_SYSTEM_UP')}")
-print(f"tar restore:     {diff('RECOVERY_START', 'TAR_SYSTEM_UP')}")
-print(f"rsync restore:   {diff('RECOVERY_START', 'RSYNC_SYSTEM_UP')}")
+print(f"tar restore:     {diff(start_for('RECOVERY_START_TAR'), 'TAR_SYSTEM_UP')}")
+print(f"rsync restore:   {diff(start_for('RECOVERY_START_RSYNC'), 'RSYNC_SYSTEM_UP')}")
 PYEOF
 ```
 
@@ -940,9 +967,13 @@ for d in dev proc sys run; do
     mount --bind /$d ${SYSROOT}/$d
 done
 
-step 7 "Rebuild bootloader"
-chroot "$SYSROOT" grub2-install "$TARGET_DISK"
-chroot "$SYSROOT" grub2-mkconfig -o /boot/grub2/grub.cfg
+step 7 "Rebuild bootloader (UEFI — consistent with the Scenario A layout)"
+# Mount the EFI System Partition inside the target first
+chroot "$SYSROOT" mount /boot/efi
+chroot "$SYSROOT" dnf reinstall -y grub2-efi-x64 shim-x64 || \
+    chroot "$SYSROOT" grub2-install --target=x86_64-efi --efi-directory=/boot/efi
+chroot "$SYSROOT" grub2-mkconfig -o /boot/efi/EFI/redhat/grub.cfg
+# (BIOS systems instead: grub2-install $TARGET_DISK && grub2-mkconfig -o /boot/grub2/grub.cfg)
 chroot "$SYSROOT" dracut -f --regenerate-all
 touch "${SYSROOT}/.autorelabel"
 

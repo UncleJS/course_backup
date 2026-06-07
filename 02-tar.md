@@ -49,7 +49,6 @@ By the end of this module you will be able to:
 - [11. Streaming tar Over SSH](#11-streaming-tar-over-ssh)
 - [12. Naming Conventions](#12-naming-conventions)
 - [13. Complete Backup Script](#13-complete-backup-script)
-  - [Configuration ###](#configuration-)
 - [Lab Exercises](#lab-exercises)
   - [Lab 02-1: Create and verify a basic archive](#lab-02-1-create-and-verify-a-basic-archive)
   - [Lab 02-2: SELinux label preservation](#lab-02-2-selinux-label-preservation)
@@ -363,7 +362,7 @@ sudo tar -czpf /backup/etc-incr-$(date +%Y%m%d-%H%M).tar.gz \
 ```
 
 **⚠️ Important:** The snapshot file (`.snar`) is updated in place after every run. To correctly perform incrementals, you need to:
-1. Start each week (or cycle) with a fresh `.snar` by copying or removing it before the full backup
+1. Start each week (or cycle) with a fresh `.snar` by **removing it** (or pointing `--listed-incremental` at a new path) before the full backup — copying it does *not* reset the chain
 2. Never modify the `.snar` between incrementals
 
 ### 8.3 Preserving snapshot state for a full cycle
@@ -385,6 +384,8 @@ sudo tar -czpf ${BACKUPDIR}/etc-full-$(date +%Y%m%d).tar.gz \
 # Save a copy of the snapshot for reference
 sudo cp ${SNAPDIR}/etc.snar ${SNAPDIR}/etc.snar.full-$(date +%Y%m%d)
 ```
+
+**Note:** the `.snar` file is required state for *creating* the next incremental in the chain. Restores work without it, but if `/backup/snapshots` is lost, the next "incremental" silently becomes a new level-0. Protect the snapshot directory (e.g., include it in the backup set).
 
 ### 8.4 Restoring an incremental backup chain
 
@@ -463,7 +464,7 @@ sudo tar -czp \
 # Or using tar's remote option
 sudo tar -czpf - \
   --xattrs --acls --selinux --numeric-owner \
-  /etc | ssh backup-server "tar -xzpf - --xattrs --acls -C /restore/$(hostname)/etc"
+  /etc | ssh backup-server "tar -xzpf - --xattrs --acls --selinux --numeric-owner -C /restore/$(hostname)/etc"
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -596,7 +597,7 @@ mkdir -p /tmp/tartest/{docs,configs,scripts}
 cp /etc/hostname /tmp/tartest/configs/
 cp /etc/os-release /tmp/tartest/configs/
 echo "test document" > /tmp/tartest/docs/notes.txt
-echo "#!/bin/bash\necho hello" > /tmp/tartest/scripts/hello.sh
+printf '#!/bin/bash\necho hello\n' > /tmp/tartest/scripts/hello.sh
 chmod +x /tmp/tartest/scripts/hello.sh
 
 # 2. Create a gzip archive

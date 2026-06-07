@@ -9,7 +9,7 @@ By the end of this module you will be able to:
 
 - Explain the Bareos architecture: Director, Storage Daemon, File Daemon, Catalog
 - Install and configure a complete Bareos server stack on RHEL 10
-- Configure MariaDB as the Bareos catalog database
+- Configure PostgreSQL as the Bareos catalog database
 - Write and understand every resource in the Director, Storage, and File Daemon configs
 - Create Jobs, JobDefs, Schedules, FileSets, Pools, and Storage resources
 - Add and manage multiple clients
@@ -33,30 +33,30 @@ By the end of this module you will be able to:
 - [2. Installation](#2-installation)
   - [2.1 Add the Bareos repository](#21-add-the-bareos-repository)
   - [2.2 Install Bareos packages](#22-install-bareos-packages)
-  - [2.3 Configure and start MariaDB](#23-configure-and-start-mariadb)
+  - [2.3 Configure and start PostgreSQL](#23-configure-and-start-postgresql)
   - [2.4 Create the Bareos catalog database](#24-create-the-bareos-catalog-database)
   - [2.5 Configure firewall](#25-configure-firewall)
   - [2.6 Configure SELinux](#26-configure-selinux)
   - [2.7 Enable and start all Bareos services](#27-enable-and-start-all-bareos-services)
 - [3. Configuration Directory Structure](#3-configuration-directory-structure)
 - [4. Director Configuration — Deep Dive](#4-director-configuration--deep-dive)
-  - [4.1 Director self-reference (`bareos-dir.d/director/bareos-dir.conf`)](#41-director-self-reference-bareos-dirdirectorbareos-dirconf)
-  - [4.2 Catalog resource (`bareos-dir.d/catalog/MyCatalog.conf`)](#42-catalog-resource-bareos-dircatalogmycatalogconf)
-  - [4.3 Messages resource (`bareos-dir.d/messages/Standard.conf`)](#43-messages-resource-bareos-dirmessagesstandardconf)
+  - [4.1 Director self-reference (`bareos-dir.d/director/bareos-dir.conf`)](#41-director-self-reference-bareos-dirddirectorbareos-dirconf)
+  - [4.2 Catalog resource (`bareos-dir.d/catalog/MyCatalog.conf`)](#42-catalog-resource-bareos-dirdcatalogmycatalogconf)
+  - [4.3 Messages resource (`bareos-dir.d/messages/Standard.conf`)](#43-messages-resource-bareos-dirdmessagesstandardconf)
   - [4.4 JobDefs resource — reusable job templates](#44-jobdefs-resource--reusable-job-templates)
-  - [4.5 Schedule resource (`bareos-dir.d/schedule/WeeklyCycle.conf`)](#45-schedule-resource-bareos-dirscheduleweeklycycleconf)
-  - [4.6 FileSet resource (`bareos-dir.d/fileset/`)](#46-fileset-resource-bareos-dirfileset)
-  - [4.7 Pool resource (`bareos-dir.d/pool/`)](#47-pool-resource-bareos-dirpool)
-  - [4.8 Storage resource (`bareos-dir.d/storage/File.conf`)](#48-storage-resource-bareos-dirstoragefileconf)
-  - [4.9 Client resource (`bareos-dir.d/client/bareos-fd.conf`)](#49-client-resource-bareos-dirclientbareos-fdconf)
-  - [4.10 Job resource (`bareos-dir.d/job/`)](#410-job-resource-bareos-dirjob)
+  - [4.5 Schedule resource (`bareos-dir.d/schedule/WeeklyCycle.conf`)](#45-schedule-resource-bareos-dirdscheduleweeklycycleconf)
+  - [4.6 FileSet resource (`bareos-dir.d/fileset/`)](#46-fileset-resource-bareos-dirdfileset)
+  - [4.7 Pool resource (`bareos-dir.d/pool/`)](#47-pool-resource-bareos-dirdpool)
+  - [4.8 Storage resource (`bareos-dir.d/storage/File.conf`)](#48-storage-resource-bareos-dirdstoragefileconf)
+  - [4.9 Client resource (`bareos-dir.d/client/bareos-fd.conf`)](#49-client-resource-bareos-dirdclientbareos-fdconf)
+  - [4.10 Job resource (`bareos-dir.d/job/`)](#410-job-resource-bareos-dirdjob)
 - [5. Storage Daemon Configuration](#5-storage-daemon-configuration)
-  - [5.1 Storage Daemon self-definition (`bareos-sd.d/storage/bareos-sd.conf`)](#51-storage-daemon-self-definition-bareos-sdstoragebareos-sdconf)
-  - [5.2 Authorise the Director to connect (`bareos-sd.d/director/bareos-dir.conf`)](#52-authorise-the-director-to-connect-bareos-sddirectorbareos-dirconf)
-  - [5.3 Device resource — disk-based storage (`bareos-sd.d/device/FileStorage.conf`)](#53-device-resource--disk-based-storage-bareos-sddevicefilestorageconf)
+  - [5.1 Storage Daemon self-definition (`bareos-sd.d/storage/bareos-sd.conf`)](#51-storage-daemon-self-definition-bareos-sddstoragebareos-sdconf)
+  - [5.2 Authorise the Director to connect (`bareos-sd.d/director/bareos-dir.conf`)](#52-authorise-the-director-to-connect-bareos-sdddirectorbareos-dirconf)
+  - [5.3 Device resource — disk-based storage (`bareos-sd.d/device/FileStorage.conf`)](#53-device-resource--disk-based-storage-bareos-sdddevicefilestorageconf)
 - [6. File Daemon Configuration](#6-file-daemon-configuration)
-  - [6.1 File Daemon self-definition (`bareos-fd.d/client/myself.conf`)](#61-file-daemon-self-definition-bareos-fdclientmyselfconf)
-  - [6.2 Authorise the Director to connect (`bareos-fd.d/director/bareos-dir.conf`)](#62-authorise-the-director-to-connect-bareos-fddirectorbareos-dirconf)
+  - [6.1 File Daemon self-definition (`bareos-fd.d/client/myself.conf`)](#61-file-daemon-self-definition-bareos-fddclientmyselfconf)
+  - [6.2 Authorise the Director to connect (`bareos-fd.d/director/bareos-dir.conf`)](#62-authorise-the-director-to-connect-bareos-fdddirectorbareos-dirconf)
 - [7. Setting Passwords](#7-setting-passwords)
 - [8. bconsole Configuration](#8-bconsole-configuration)
 - [9. Validate and Reload Configuration](#9-validate-and-reload-configuration)
@@ -104,7 +104,7 @@ By the end of this module you will be able to:
   - [17.5 Apache Configuration](#175-apache-configuration)
   - [17.6 Director: Console Resource for WebUI](#176-director-console-resource-for-webui)
   - [17.7 Director: Profile Resources](#177-director-profile-resources)
-  - [17.8 `/etc/bareos-webui/directors.ini` — Full Annotated Config](#178-etcbareos-webuilirectorsini--full-annotated-config)
+  - [17.8 `/etc/bareos-webui/directors.ini` — Full Annotated Config](#178-etcbareos-webuidirectorsini--full-annotated-config)
   - [17.9 `/etc/bareos-webui/configuration.ini` — Full Annotated Config](#179-etcbareos-webuiconfigurationini--full-annotated-config)
   - [17.10 Bvfs Cache — Keep the File-Tree Browser Responsive](#1710-bvfs-cache--keep-the-file-tree-browser-responsive)
   - [17.11 TLS Between WebUI and Director (Certificate-Based)](#1711-tls-between-webui-and-director-certificate-based)
@@ -144,8 +144,8 @@ Bareos (Backup Archiving REcovery Open Sourced) is a network backup solution for
                           │  │ (bareos-dir) │──────────────────────────────────────────┐    │
                           │  │  Port 9101   │   ┌──────────────┐   ┌────────────────┐  │    │
                           │  └──────┬───────┘   │   Storage    │   │    Catalog     │  │    │
-                          │         │           │   Daemon     │◄──│   (MariaDB)    │  │    │
-                          │         │           │ (bareos-sd)  │   │   Port 3306    │  │    │
+                          │         │           │   Daemon     │◄──│  (PostgreSQL)  │  │    │
+                          │         │           │ (bareos-sd)  │   │   Port 5432    │  │    │
                           │         │           │  Port 9103   │   └────────────────┘  │    │
                           │         │           └──────────────┘                       │    │
                           └─────────┼─────────────────────────────────────────────────-┘    │
@@ -166,7 +166,7 @@ Bareos (Backup Archiving REcovery Open Sourced) is a network backup solution for
 | **Director** | `bareos-dir` | 9101 | Brain of Bareos. Orchestrates all backup and restore operations. Reads config, schedules jobs, coordinates FD and SD. |
 | **Storage Daemon** | `bareos-sd` | 9103 | Manages physical storage — disk files, tape drives. Receives data from FD, writes to storage devices. |
 | **File Daemon** | `bareos-fd` | 9102 | Runs on every client. Reads files from the client filesystem and sends them to the Storage Daemon. |
-| **Catalog** | MariaDB/MySQL | 3306 | Relational database storing metadata: what was backed up, when, where. NOT the backup data itself. |
+| **Catalog** | PostgreSQL | 5432 | Relational database storing metadata: what was backed up, when, where. NOT the backup data itself. (Bareos 21+ supports PostgreSQL only — MySQL/MariaDB catalog support was removed.) |
 | **bconsole** | `bconsole` | — | CLI management console. Connects directly to the Director on port 9101. |
 | **Bareos WebUI** | `httpd` + `php-fpm` | 80/443 | Browser-based dashboard. Communicates with the Director over the same TCP 9101 bconsole protocol using a named Console resource. Installed separately — see Section 17. |
 
@@ -180,7 +180,7 @@ Bareos (Backup Archiving REcovery Open Sourced) is a network backup solution for
 5. File Daemon sends data stream directly to Storage Daemon
 6. Storage Daemon writes data to disk/tape
 7. Storage Daemon confirms to Director
-8. Director writes job metadata to Catalog (MariaDB)
+8. Director writes job metadata to Catalog (PostgreSQL)
 9. Director sends email notification (if configured)
 ```
 
@@ -212,70 +212,67 @@ Bareos (Backup Archiving REcovery Open Sourced) is a network backup solution for
 sudo dnf install -y wget
 
 # Add Bareos repository (current stable release)
+# EL_10 covers RHEL 10 and derivatives (Rocky, AlmaLinux, Oracle, CentOS Stream)
 wget -O /etc/yum.repos.d/bareos.repo \
-  https://download.bareos.org/current/EL_9/bareos.repo
-# Note: Use EL_9 for RHEL 10 (AlmaLinux/Rocky) if EL_10 not yet available
-# Check https://download.bareos.org/ for the exact RHEL 10 URL
+  https://download.bareos.org/current/EL_10/bareos.repo
 
-# Or create the repo file manually
+# Or create the repo file manually (hardcode EL_10 — $releasever can expand
+# to a minor version like 10.0 and break the URL)
 sudo tee /etc/yum.repos.d/bareos.repo <<'EOF'
 [bareos]
-name=Bareos EL $releasever
-baseurl=https://download.bareos.org/current/EL_$releasever/$basearch/
+name=Bareos EL 10
+baseurl=https://download.bareos.org/current/EL_10/$basearch/
 enabled=1
 gpgcheck=1
-gpgkey=https://download.bareos.org/current/EL_$releasever/repodata/repomd.xml.key
+gpgkey=https://download.bareos.org/current/EL_10/repodata/repomd.xml.key
 EOF
 
 # Import GPG key
-sudo rpm --import https://download.bareos.org/current/EL_9/repodata/repomd.xml.key
+sudo rpm --import https://download.bareos.org/current/EL_10/repodata/repomd.xml.key
 ```
 
 ### 2.2 Install Bareos packages
 
 ```bash
-# Install Director, Storage Daemon, File Daemon, MariaDB catalog, and bconsole
+# Install Director, Storage Daemon, File Daemon, PostgreSQL catalog, and bconsole
+# (Bareos 21+ supports PostgreSQL only — there is no bareos-database-mysql)
 sudo dnf install -y \
   bareos \
   bareos-director \
   bareos-storage \
   bareos-filedaemon \
-  bareos-database-mysql \
+  bareos-database-postgresql \
   bareos-database-tools \
   bareos-bconsole \
   bareos-tools
 
-# Also install MariaDB if not already present
-sudo dnf install -y mariadb-server
+# Also install PostgreSQL if not already present
+sudo dnf install -y postgresql-server
 ```
 
-### 2.3 Configure and start MariaDB
+### 2.3 Configure and start PostgreSQL
 
 ```bash
-# Enable and start MariaDB
-sudo systemctl enable --now mariadb
+# Initialise the cluster, then enable and start PostgreSQL
+sudo postgresql-setup --initdb
+sudo systemctl enable --now postgresql
 
-# Secure the installation
-sudo mysql_secure_installation
-# Set root password: yes
-# Remove anonymous users: yes
-# Disallow root login remotely: yes
-# Remove test database: yes
-# Reload privilege tables: yes
+# Bareos connects over the local Unix socket using peer authentication
+# as the 'bareos' user — no DB password setup is needed for the default install.
 ```
 
 ### 2.4 Create the Bareos catalog database
 
 ```bash
-# Run the Bareos database creation script
+# Run the Bareos database creation scripts as the postgres superuser
 # This creates the bareos database and schema
-sudo -u bareos /usr/lib/bareos/scripts/create_bareos_database
-sudo -u bareos /usr/lib/bareos/scripts/make_bareos_tables
-sudo -u bareos /usr/lib/bareos/scripts/grant_bareos_privileges
+sudo -u postgres /usr/lib/bareos/scripts/create_bareos_database
+sudo -u postgres /usr/lib/bareos/scripts/make_bareos_tables
+sudo -u postgres /usr/lib/bareos/scripts/grant_bareos_privileges
 
 # Verify the database was created
-sudo mysql -u root -e "SHOW DATABASES;" | grep bareos
-sudo mysql -u root -e "USE bareos; SHOW TABLES;"
+sudo -u postgres psql -l | grep bareos
+sudo -u postgres psql bareos -c '\dt' | head
 ```
 
 ### 2.5 Configure firewall
@@ -302,14 +299,13 @@ sudo firewall-cmd --list-services
 ### 2.6 Configure SELinux
 
 ```bash
-# Allow Bareos daemons to communicate on their ports
-sudo setsebool -P bareos_use_connection 1 2>/dev/null || true
-
-# If specific SELinux denials occur, check the audit log
+# Bareos has no dedicated SELinux booleans — the daemons run under the
+# distribution policy. If specific SELinux denials occur, check the audit log
 sudo ausearch -c 'bareos-dir' --raw | audit2allow -M bareos_local
 sudo semodule -i bareos_local.pp
 
-# Bareos data directory SELinux context
+# Bareos data directory SELinux context — check which bareos_* types your
+# policy provides first (seinfo -t | grep bareos); fall back to var_t if none
 sudo semanage fcontext -a -t bareos_store_t "/backup/bareos(/.*)?"
 sudo restorecon -Rv /backup/bareos
 ```
@@ -481,22 +477,22 @@ sudo tee /etc/bareos/bareos-dir.d/catalog/MyCatalog.conf <<'EOF'
 Catalog {
   Name = MyCatalog
 
-  # Database type: mysql (covers MariaDB)
-  DB Driver = mysql
+  # Database type: postgresql (the only supported driver since Bareos 21)
+  DB Driver = postgresql
 
   # Database name (created in step 2.4)
   DB Name = bareos
 
-  # Database host — localhost if MariaDB is on the same machine
+  # Database host — localhost if PostgreSQL is on the same machine
   DB Address = localhost
 
-  # Database port
-  DB Port = 3306
+  # Database port (PostgreSQL default)
+  DB Port = 5432
 
   # Database user and password
   # This user was created by grant_bareos_privileges
   DB User = bareos
-  DB Password = ""    # Bareos uses Unix socket auth by default
+  DB Password = ""    # Empty: PostgreSQL peer auth over the local Unix socket
 }
 EOF
 ```
@@ -682,7 +678,7 @@ FileSet {
     File = /home
     File = /boot
     File = /var/www
-    File = /var/lib/mysql     # Only if using consistent backup
+    File = /var/lib/pgsql     # ⚠️ live DB files are inconsistent — dump first (see 14.x catalog backup)
     File = /opt
     File = /srv
     File = /usr/local
@@ -949,6 +945,9 @@ Job {
   Name = "BackupCatalog"
   JobDefs = "DefaultJob"
   Level = Full
+  # "Catalog" FileSet and "WeeklyCycleAfterBackup" Schedule ship with the
+  # default Bareos install configs (bareos-dir.d/fileset/Catalog.conf,
+  # bareos-dir.d/schedule/WeeklyCycleAfterBackup.conf)
   FileSet = "Catalog"
   Schedule = "WeeklyCycleAfterBackup"
   Client = bareos-fd
@@ -1038,13 +1037,13 @@ Device {
   # Label media automatically if unlabelled
   Label Media = yes
 
-  # Auto-mount device (yes for disk, no for tape)
+  # Random access (yes for disk, no for tape)
   Random Access = yes
 
   # Auto-mount when needed
   AutoMount = yes
 
-  # Allow multiple volumes to be opened simultaneously
+  # Not an autochanger — a single disk device
   AutoChanger = no
 
   # Remove volume file on close (no = keep the file)
@@ -1487,8 +1486,10 @@ Enter date/time in the form YYYY-MM-DD HH:MM:SS: 2026-02-18 12:00:00
 ### Restore all files from the latest backup
 
 ```
-*restore client=bareos-fd where=/ all yes
+*restore client=bareos-fd where=/tmp/bareos-restore all done yes
 ```
+
+> **⚠️ Never restore with `where=/` on a running system** — that overwrites live files in place. Restore to a staging path and copy what you need, as in the labs.
 
 [↑ Table of Contents](#table-of-contents)
 
@@ -1504,7 +1505,7 @@ sudo dnf install -y epel-release
 
 # Add Bareos repo (same as on server)
 wget -O /etc/yum.repos.d/bareos.repo \
-  https://download.bareos.org/current/EL_9/bareos.repo
+  https://download.bareos.org/current/EL_10/bareos.repo
 
 sudo dnf install -y bareos-filedaemon
 
@@ -1612,11 +1613,11 @@ ls -lh /var/lib/bareos/*.sql
 ### 13.3 Catalog database check and repair
 
 ```bash
-# Check catalog for consistency
-sudo bareos-dbcheck -B MyCatalog
+# Batch mode — run all consistency checks non-interactively
+sudo bareos-dbcheck -b -c /etc/bareos
 
 # Interactive mode — check and fix
-sudo bareos-dbcheck -B MyCatalog -c /etc/bareos/bareos-dir.d/catalog/MyCatalog.conf
+sudo bareos-dbcheck -c /etc/bareos
 ```
 
 ### 13.4 Catalog size management
@@ -1624,13 +1625,13 @@ sudo bareos-dbcheck -B MyCatalog -c /etc/bareos/bareos-dir.d/catalog/MyCatalog.c
 The catalog grows over time as file records accumulate. Monitor it:
 
 ```bash
-# Check catalog database size
-sudo mysql -u root -e "SELECT table_name, \
-  ROUND(data_length/1024/1024,2) AS 'Data MB', \
-  ROUND(index_length/1024/1024,2) AS 'Index MB' \
-  FROM information_schema.tables \
-  WHERE table_schema='bareos' \
-  ORDER BY data_length DESC;"
+# Check catalog database size (PostgreSQL)
+sudo -u postgres psql bareos -c "
+  SELECT relname AS table,
+         pg_size_pretty(pg_total_relation_size(relid)) AS total_size
+  FROM pg_catalog.pg_statio_user_tables
+  ORDER BY pg_total_relation_size(relid) DESC
+  LIMIT 10;"
 
 # Key tables:
 # File — grows large if File Retention is long
@@ -2108,7 +2109,7 @@ Profile {
   CatalogACL  = MyCatalog
   PoolACL     = Full, Differential, Incremental
   StorageACL  = FileStorage
-  ClientACL   = bareos-fd, backup-client-fd
+  ClientACL   = bareos-fd, backup-client-1
   FileSetACL  = DefaultFileSet
   WhereACL    = *all*               # allow restore to any path
 }
@@ -2512,13 +2513,13 @@ After login you land on the **Dashboard** showing:
 # Follow Sections 2.1–2.7:
 # 1. Add Bareos repo
 # 2. Install all packages
-# 3. Configure MariaDB
+# 3. Configure PostgreSQL
 # 4. Create catalog database
 # 5. Configure firewall
 # 6. Start all services
 
 # Verify all services are running
-sudo systemctl status bareos-dir bareos-sd bareos-fd mariadb
+sudo systemctl status bareos-dir bareos-sd bareos-fd postgresql
 
 # Connect with bconsole
 sudo bconsole
@@ -2794,8 +2795,8 @@ cat /tmp/webui-restore/etc/hostname
 
 ## Answers to Review Questions
 
-1. **Director (bareos-dir):** orchestrates all operations, reads config, schedules jobs, coordinates FD and SD. **Storage Daemon (bareos-sd):** manages physical storage, writes/reads data to disk or tape. **File Daemon (bareos-fd):** runs on clients, reads the filesystem, sends data to SD. **Catalog (MariaDB):** stores metadata about what was backed up — not the backup data itself.
-2. The **Catalog** is a relational database (MariaDB) storing records of: which files were backed up, on which job, on which volume, when. It does NOT store the actual file data. The catalog is needed to efficiently find and restore files but can be rebuilt from volumes if lost.
+1. **Director (bareos-dir):** orchestrates all operations, reads config, schedules jobs, coordinates FD and SD. **Storage Daemon (bareos-sd):** manages physical storage, writes/reads data to disk or tape. **File Daemon (bareos-fd):** runs on clients, reads the filesystem, sends data to SD. **Catalog (PostgreSQL):** stores metadata about what was backed up — not the backup data itself.
+2. The **Catalog** is a relational database (PostgreSQL) storing records of: which files were backed up, on which job, on which volume, when. It does NOT store the actual file data. The catalog is needed to efficiently find and restore files but can be rebuilt from volumes if lost.
 3. A **JobDef** is a reusable template (default values). A **Job** inherits from a JobDef and overrides specific values. Multiple jobs can share the same JobDef, reducing config repetition.
 4. **Volume lifecycle:** New → Append (data being written) → Full (volume full or MaxVolumeJobs reached) → Used (no more data being written) → Purged (all jobs in the volume have exceeded their retention) → Recycled (can be overwritten). `Auto Prune = yes` and `Recycle = yes` enable automatic lifecycle management.
 5. These directives route each backup level to a different Pool. Full backups go to the Full Pool (longer retention), Incrementals go to the Incremental Pool (shorter retention), Differentials to their pool. This allows different retention and volume management per backup level.

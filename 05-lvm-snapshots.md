@@ -76,6 +76,8 @@ Timeline:
 
 The backup sees a consistent state as of 08:00:00. The live system never pauses.
 
+> **Crash-consistent vs application-consistent:** an LVM snapshot on its own is **crash-consistent** — it captures the blocks exactly as they were, including any in-flight database transaction, just as a power failure would. The filesystem journal makes the *filesystem* safe, but applications (especially databases) may still need recovery on restore. For **application-consistent** snapshots, quiesce the application first — see [Section 9](#9-database-consistent-snapshots).
+
 [↑ Table of Contents](#table-of-contents)
 
 ---
@@ -181,10 +183,10 @@ sudo lvs -o +snap_percent,origin,lv_snapshot_invalid
 # Create a mount point
 sudo mkdir -p /mnt/snapshot
 
-# Mount the snapshot read-only
-sudo mount -o ro /dev/rhel/root_snap /mnt/snapshot
-
-# For XFS: add 'nouuid' to handle duplicate UUID
+# Mount the snapshot read-only.
+# For XFS (the RHEL 10 default) you MUST add 'nouuid' — the snapshot has the
+# same filesystem UUID as the still-mounted origin, and a plain mount fails
+# with a duplicate-UUID error:
 sudo mount -o ro,nouuid /dev/rhel/root_snap /mnt/snapshot
 
 # Verify
@@ -286,7 +288,7 @@ EOF
 
 ```bash
 # Monitor snapshot usage (run this frequently during backup)
-sudo lvs -o lv_name,snap_percent --noheadings | grep -v ""
+sudo lvs -o lv_name,snap_percent --noheadings | awk 'NF>1'
 
 # Alert if snapshot is > 70% full
 sudo lvs -o lv_name,snap_percent --noheadings | awk '$2 > 70 {print "WARNING: "$1" is "$2"% full"}'
@@ -313,6 +315,18 @@ sudo lvextend -L +2G /dev/rhel/root_snap
 # Or resize to a specific size
 sudo lvextend -L 8G /dev/rhel/root_snap
 ```
+
+### Automatic extension (recommended safety net)
+
+LVM can auto-extend thick snapshots via `dmeventd`. In `/etc/lvm/lvm.conf` (`activation` section):
+
+```
+# When a snapshot exceeds 70% usage, grow it by 20% — requires VG free space
+snapshot_autoextend_threshold = 70
+snapshot_autoextend_percent = 20
+```
+
+A threshold of `100` (the default) disables auto-extension. This is the standard mitigation for the overflow risk described above — set it on any host that relies on snapshots during backups.
 
 [↑ Table of Contents](#table-of-contents)
 
@@ -485,15 +499,19 @@ For databases, combine a pre-freeze step with the LVM snapshot:
 
 ### MariaDB/MySQL
 
-```bash
-# 1. Flush and lock tables (holds write lock briefly)
-mysql -u root -e "FLUSH TABLES WITH READ LOCK;"
+> **⚠️ The lock must be held in ONE open session.** `FLUSH TABLES WITH READ LOCK` is released the instant the client that took it disconnects — running it as a one-shot `mysql -e` command locks nothing by the time you snapshot.
 
-# 2. In a second terminal: create snapshot (must be fast)
+```bash
+# 1. Open an interactive session and take the lock — LEAVE THIS SESSION OPEN
+mysql -u root
+#   mysql> FLUSH TABLES WITH READ LOCK;
+
+# 2. In a second terminal, while the first session still holds the lock:
 sudo lvcreate -L 5G -s -n mysql_snap /dev/rhel/root
 
-# 3. Release the lock
-mysql -u root -e "UNLOCK TABLES;"
+# 3. Back in the first session, release the lock and exit
+#   mysql> UNLOCK TABLES;
+#   mysql> \q
 
 # 4. Mount and back up
 sudo mount -o ro,nouuid /dev/rhel/mysql_snap /mnt/mysql_snap
@@ -517,15 +535,19 @@ sudo mariabackup --backup \
 
 ### PostgreSQL
 
-```bash
-# 1. Start backup mode (writes backup label file)
-psql -U postgres -c "SELECT pg_start_backup('lvm-snapshot-$(date +%Y%m%d)');"
+> **Note:** `pg_start_backup()`/`pg_stop_backup()` were **removed in PostgreSQL 15** (RHEL 10 ships PostgreSQL 16+). The replacements `pg_backup_start()`/`pg_backup_stop()` are session-scoped — both calls must run in the **same open session**, so they cannot be split across separate `psql -c` invocations. For most cases, simply use `pg_basebackup` instead.
 
-# 2. Create LVM snapshot
+```bash
+# 1. Open ONE psql session and start backup mode — leave the session open
+sudo -u postgres psql
+#   postgres=# SELECT pg_backup_start('lvm-snapshot');
+
+# 2. In a second terminal, create the LVM snapshot
 sudo lvcreate -L 5G -s -n pg_snap /dev/rhel/root
 
-# 3. Stop backup mode
-psql -U postgres -c "SELECT pg_stop_backup();"
+# 3. Back in the same psql session, stop backup mode and exit
+#   postgres=# SELECT pg_backup_stop();
+#   postgres=# \q
 
 # 4. Mount and back up snapshot
 sudo mount -o ro,nouuid /dev/rhel/pg_snap /mnt/pg_snap
@@ -553,7 +575,9 @@ sudo rsync -aAXh /mnt/root_snap/etc/nginx/ /etc/nginx/
 # ⚠️ WARNING: Merging a snapshot back into the origin LV replaces ALL data
 # Only do this for full roll-back scenarios, not partial restores
 sudo lvconvert --merge /dev/rhel/root_snap
-# This requires rebooting — the merge happens on next boot
+# If the origin is in use (e.g. the root filesystem), the merge is deferred
+# to the next activation — i.e. the next reboot. For an origin you can
+# unmount, the merge starts immediately (umount, then lvconvert --merge).
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -673,8 +697,8 @@ sudo cat /var/log/lvm-snapshot-backup.log
 5. **Thick snapshot:** allocates a fixed CoW space up front from VG free extents. **Thin snapshot:** requires a thin pool; CoW space is allocated dynamically from the pool as needed. Thin snapshots are more flexible and share pool space efficiently when multiple snapshots exist simultaneously.
 6. 1) Create snapshot → 2) Mount snapshot read-only → 3) Run backup tool against snapshot mount → 4) Unmount snapshot → 5) Remove snapshot LV.
 7. `lvs -o lv_name,snap_percent` — shows the percentage of CoW space used. Also `lvs --noheadings -o snap_percent /dev/VG/SNAP`.
-8. `lvconvert --merge SNAP_LV` marks the snapshot for merging back into the origin LV. On the **next reboot**, the origin LV is replaced entirely with the snapshot's content. Used for rolling back a volume to a previous state. Not for partial restores — it replaces all data.
-9. Issue `FLUSH TABLES WITH READ LOCK;` in MariaDB to stop writes and flush dirty pages to disk. Immediately create the LVM snapshot, then release the lock with `UNLOCK TABLES;`. The lock window is only as long as the `lvcreate` command takes (typically under a second).
+8. `lvconvert --merge SNAP_LV` merges the snapshot back into the origin LV, replacing its content. If the origin is in use (e.g. the root filesystem) the merge is deferred to the next activation/reboot; an unmounted origin merges immediately. Used for rolling back a volume to a previous state. Not for partial restores — it replaces all data.
+9. In an **interactive MariaDB session that stays open**, issue `FLUSH TABLES WITH READ LOCK;` (the lock dies with the session, so a one-shot `mysql -e` will not work). While that session holds the lock, create the LVM snapshot from a second terminal, then release with `UNLOCK TABLES;` in the same session. The lock window is only as long as the `lvcreate` takes (typically under a second).
 10. `sudo lvcreate -L 5G -s -n home_backup /dev/rhel/home`
 
 [↑ Table of Contents](#table-of-contents)

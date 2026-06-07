@@ -30,7 +30,7 @@ By the end of this module you will be able to:
   - [3.3 Set up SSH key authentication](#33-set-up-ssh-key-authentication)
   - [3.4 Configure .amandahosts on clients](#34-configure-amandahosts-on-clients)
   - [3.5 Install amandad on clients](#35-install-amandad-on-clients)
-  - [3.6 Configure xinetd/systemd for amandad (on clients)](#36-configure-xinetdsystemd-for-amandad-on-clients)
+  - [3.6 Configure amandad invocation (on clients)](#36-configure-amandad-invocation-on-clients)
 - [4. Amanda Configuration Directory](#4-amanda-configuration-directory)
   - [Create a configuration set](#create-a-configuration-set)
 - [5. Virtual Tape Library Setup](#5-virtual-tape-library-setup)
@@ -46,8 +46,8 @@ By the end of this module you will be able to:
 - [11. Amanda Report](#11-amanda-report)
 - [12. amadmin — Administration Tool](#12-amadmin--administration-tool)
 - [13. amrestore — Restoring Files](#13-amrestore--restoring-files)
-  - [13.1 Find which tape a file is on](#131-find-which-tape-a-file-is-on)
-  - [13.2 amrestore — restore from tape/VTL](#132-amrestore--restore-from-tapevtl)
+  - [13.1 Find which dumps exist for a DLE](#131-find-which-dumps-exist-for-a-dle)
+  - [13.2 amfetchdump — restore a dump image from the VTL](#132-amfetchdump--restore-a-dump-image-from-the-vtl)
   - [13.3 amrecover — Interactive recovery (recommended)](#133-amrecover--interactive-recovery-recommended)
 - [14. Automating Amanda with Cron](#14-automating-amanda-with-cron)
 - [15. Multiple Configuration Sets](#15-multiple-configuration-sets)
@@ -75,16 +75,16 @@ Amanda (Advanced Maryland Automatic Network Disk Archiver) is an open-source bac
 | **Multi-client** | One server backs up many clients over the network |
 | **Native compression** | Supports gzip, bzip2 compression on client before transfer |
 | **Encryption** | Supports GPG and AES encryption |
-| **No agent needed** | Uses `amandad` which is triggered over SSH (no daemon) |
+| **On-demand agent** | Clients run `amandad`, invoked per-run (via SSH in this module) rather than as a persistent daemon |
 
 ### Amanda vs Bareos
 
 | | Amanda | Bareos |
 |--|--------|--------|
 | Architecture | Server-centric, SSH-based | Daemons on server and all clients |
-| Catalog | Simple text files + index | SQL database (MariaDB) |
+| Catalog | Simple text files + index | SQL database (PostgreSQL) |
 | Configuration | Two files (amanda.conf + disklist) | Directory of resource files |
-| GUI | AmandaWeb (commercial) | bareos-webui (included) |
+| GUI | Zmanda Management Console (commercial) | bareos-webui (included) |
 | Tape support | Native | Via autochanger |
 | Complexity | Medium | High |
 | Best for | Simpler networks, tape environments | Large environments, enterprise needs |
@@ -124,15 +124,18 @@ Amanda uses SSH to trigger `amandad` on clients. No permanent daemon runs on cli
 
 ### 3.1 Install Amanda server
 
+> **⚠️ RHEL 10 availability:** as of mid-2026, Amanda is packaged in **EPEL 9 but not EPEL 10** — `dnf install amanda-server` fails on a stock RHEL 10 system. Options: run the Amanda server on a RHEL 9 host (EPEL 9 has `amanda-3.5.3`), rebuild the EPEL 9 source RPM for EL10, or build from source (github.com/zmanda/amanda). The configuration in this module is identical regardless of how Amanda was installed. Check `dnf info amanda-server` — if it appears in EPEL 10 later, install normally.
+
 ```bash
-# Enable EPEL for Amanda
+# Enable EPEL
 sudo dnf install -y epel-release
 
-# Install Amanda server and client packages
-sudo dnf install -y amanda amanda-server amanda-client
+# Install Amanda server and client packages (see availability note above)
+sudo dnf install -y amanda-server amanda-client
 
-# Verify
-amserverconfig --version 2>/dev/null || amanda --version 2>/dev/null
+# Verify the installed version
+rpm -q amanda-server
+sudo -u amandabackup amgetconf build.version 2>/dev/null || rpm -q --qf '%{VERSION}\n' amanda-libs
 ```
 
 ### 3.2 Create the Amanda user
@@ -197,9 +200,9 @@ sudo dnf install -y amanda-client
 which amandad
 ```
 
-### 3.6 Configure xinetd/systemd for amandad (on clients)
+### 3.6 Configure amandad invocation (on clients)
 
-On RHEL 10 systems, Amanda client can be launched via xinetd or directly via SSH:
+RHEL 10 ships **no xinetd package**, so the traditional inetd-style activation is unavailable. Launch `amandad` over SSH (recommended — used throughout this module) or write systemd socket units:
 
 ```bash
 # SSH-based approach (recommended, no xinetd needed):
@@ -260,16 +263,14 @@ sudo mkdir -p /backup/vtl/DailySet
 sudo chown -R amandabackup:disk /backup/vtl/DailySet
 sudo chmod 750 /backup/vtl/DailySet
 
-# Create virtual tape slots (10 slots, 10GB each)
+# Create virtual tape slots (10 slots; chg-disk expects UNPADDED names: slot1..slot10)
 sudo -u amandabackup bash <<'EOF'
 cd /backup/vtl/DailySet
-for i in $(seq -w 01 10); do
+for i in $(seq 1 10); do
   mkdir -p slot${i}
 done
-# Create the data directory
-mkdir -p data
-# Create the drive symlink (points to a slot)
-ln -sf slot01 drive0
+# chg-disk uses a 'data' symlink pointing at the currently loaded slot
+ln -sf slot1 data
 EOF
 
 ls -la /backup/vtl/DailySet/
@@ -277,16 +278,13 @@ ls -la /backup/vtl/DailySet/
 
 ### Configure the vtape (virtual tape) changer
 
-```bash
-# Create the chg-disk configuration for virtual tapes
-sudo tee /etc/amanda/DailySet/chg-disk.conf <<'EOF'
-# chg-disk.conf — Virtual tape changer for disk
-tpchanger "chg-disk"
-changerfile "/var/lib/amanda/DailySet/changer"
-tapedev "file:/backup/vtl/DailySet/drive0"
-rawtapedev "/backup/vtl/DailySet"
-runtapes 1
-EOF
+No separate changer file is needed — the modern `chg-disk:` changer is configured
+directly in `amanda.conf` (Section 6):
+
+```
+tpchanger "chg-disk:/backup/vtl/DailySet"
+property "num-slot" "10"
+property "auto-create-slot" "yes"
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -302,11 +300,11 @@ sudo tee /etc/amanda/DailySet/amanda.conf <<'EOF'
 # Configuration set name
 org "DailySet"
 
-# Amanda server hostname
+# Where Amanda mails its reports
 mailto "root@localhost"
 
-# Minimum size required for a dump to run (in KB)
-dumpcycle 7            # Aim for a full dump every 7 days
+# Scheduling cycle
+dumpcycle 7            # Aim for a full dump of every DLE within 7 days
 runspercycle 5         # Number of amdump runs per dumpcycle (week)
 tapecycle 10           # How many tapes/VTL slots to cycle through
 runtapes 1             # Number of tapes to use per run
@@ -322,6 +320,8 @@ indexdir "/var/lib/amanda/DailySet/index"      # File indexes (for amrecover)
 
 # Virtual Tape Library
 tpchanger "chg-disk:/backup/vtl/DailySet"
+property "num-slot" "10"                       # Number of VTL slots
+property "auto-create-slot" "yes"              # Create slot dirs on demand
 tapetype "HARDDISK"
 labelstr "^DailySet-[0-9][0-9]*$"              # Regex: valid tape labels
 
@@ -330,7 +330,6 @@ define tapetype HARDDISK {
   comment "Disk-based virtual tape"
   length  10 gbytes    # Size of each VTL slot
   filemark  0 kbytes   # No physical filemark for disk
-  speed  100 mbytes    # Expected write speed
 }
 
 # Dump bandwidth limits (KB/s per client)
@@ -349,31 +348,20 @@ compress client fast
 # encrypt client
 # encrypt server
 
-# amandad path on clients
-amandad_path "/usr/libexec/amanda/amandad"
-
-# SSH authentication
-ssh_keys "/var/lib/amanda/.ssh/id_ed25519"
-
-# Maximum time for a dump to run (seconds)
-maxdumps 4
-
-# Reserve space for Amanda's own operations (KB)
+# Reserve space for Amanda's own operations
 reserved-space 100 mbytes
 
-# Hold time before tapes are reused (days)
-# Tapes older than this are eligible for overwriting
-tapecycle 10
-
 # Dumptypes — define backup profiles
+# (auth/ssh_keys/amandad_path/maxdumps are per-dumptype settings — see 'global' below)
 define dumptype global {
   comment "Global defaults"
   compress client fast
   auth "ssh"
   ssh_keys "/var/lib/amanda/.ssh/id_ed25519"
+  amandad_path "/usr/libexec/amanda/amandad"
   index yes                  # Create file index (enables amrecover)
   estimate server            # Estimate method
-  maxdumps 2
+  maxdumps 2                 # Max concurrent dumps from one client (a count, not a time)
 }
 
 define dumptype no-compress {
@@ -471,10 +459,10 @@ backup-server    /srv          comp-user
 backup-server    /usr/local    comp-root
 
 # ─── Remote client 1 ─────────────────────────────────────────────
-backup-client-1  /etc          comp-root
-backup-client-1  /home         comp-user
-backup-client-1  /root         comp-root
-backup-client-1  /var/www      comp-user
+backup-client  /etc          comp-root
+backup-client  /home         comp-user
+backup-client  /root         comp-root
+backup-client  /var/www      comp-user
 EOF
 
 sudo chown amandabackup:disk /etc/amanda/DailySet/disklist
@@ -506,14 +494,14 @@ backup-server    /nfs/share    {
 ## 8. Initialise Amanda
 
 ```bash
-# Label virtual tapes
-# Amanda needs labelled tapes before it can use them
-sudo -u amandabackup amadmin DailySet tape
-
-# Or label them manually
-for i in $(seq -w 01 10); do
-  sudo -u amandabackup amlabel DailySet "DailySet-${i}" slot ${i}
+# Label the virtual tapes — Amanda needs labelled tapes before it can use them
+# (slot numbers are unpadded: slot 1..slot 10; pad only the LABEL for sorting)
+for i in $(seq 1 10); do
+  sudo -u amandabackup amlabel DailySet "DailySet-$(printf '%02d' $i)" slot ${i}
 done
+
+# Verify: show which tape Amanda expects to write next
+sudo -u amandabackup amadmin DailySet tape
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -539,7 +527,7 @@ sudo -u amandabackup amcheck DailySet
 sudo -u amandabackup amcheck -v DailySet
 
 # Check a specific client only
-sudo -u amandabackup amcheck -h backup-client-1 DailySet
+sudo -u amandabackup amcheck -h backup-client DailySet
 ```
 
 **Expected output when healthy:**
@@ -555,7 +543,7 @@ Amanda Client Host Check
 ------------------------
   backup-server: /etc: OK
   backup-server: /home: OK
-  backup-client-1: /etc: OK
+  backup-client: /etc: OK
 ...
 
 (brought to you by Amanda version 3.5.x)
@@ -574,10 +562,10 @@ sudo -u amandabackup amdump DailySet
 # Amanda automatically decides which DLEs to dump as Full vs Incremental
 # based on the dumpcycle, runspercycle, and last dump history
 
-# Run with verbose output to console
+# Dump to the holding disk only — skip writing to tape (flush later with amflush)
 sudo -u amandabackup amdump DailySet --no-taper
 
-# Dry run — estimate what would be backed up
+# Show the server's stored size estimates per DLE
 sudo -u amandabackup amadmin DailySet estimate
 ```
 
@@ -617,7 +605,7 @@ Hostname        Disk              Level  Orig KB  Out KB  Comp%  Tape
 --------------- ----------------- -----  -------- ------- ------ ---------
 backup-server   /etc              1       8192    3120    38.1%  DailySet-01
 backup-server   /home             0      51200   18432    36.0%  DailySet-01
-backup-client-1 /etc              1       6144    2304    37.5%  DailySet-01
+backup-client /etc              1       6144    2304    37.5%  DailySet-01
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -642,12 +630,12 @@ sudo -u amandabackup amadmin DailySet info backup-server /etc
 # Force a full dump on next run for a specific DLE
 sudo -u amandabackup amadmin DailySet force backup-server /etc
 
-# Force incremental on next run
-sudo -u amandabackup amadmin DailySet force-level 1 backup-server /home
+# Force a level-1 incremental on next run (note: one token, hyphenated)
+sudo -u amandabackup amadmin DailySet force-level-1 backup-server /home
 
-# Reset statistics for a DLE (forces full dump calculation)
+# ⚠️ Remove a DLE from Amanda's database entirely (destroys its history —
+# only use when permanently retiring a DLE; also remove it from disklist)
 sudo -u amandabackup amadmin DailySet delete backup-server /etc
-# Then re-add it to curinfo by running amdump
 
 # Reuse a tape now (don't wait for tapecycle)
 sudo -u amandabackup amadmin DailySet reuse DailySet-05
@@ -659,41 +647,39 @@ sudo -u amandabackup amadmin DailySet reuse DailySet-05
 
 ## 13. amrestore — Restoring Files
 
-### 13.1 Find which tape a file is on
+### 13.1 Find which dumps exist for a DLE
 
 ```bash
-# Search the index for a specific file
-sudo -u amandabackup amadmin DailySet find /etc/ssh/sshd_config
+# amadmin find matches host/disk (DLEs), not individual file paths
+sudo -u amandabackup amadmin DailySet find backup-server /etc
 # Output shows: date, client, diskname, level, tape label, file position
+# (To locate a single FILE, use amrecover's indexed browsing — 13.3)
 ```
 
-### 13.2 amrestore — restore from tape/VTL
+### 13.2 amfetchdump — restore a dump image from the VTL
 
 ```bash
-# Restore to current directory
-# (First: load the right VTL slot)
-sudo -u amandabackup amlabel DailySet -l DailySet-01
-
-# Basic restore of a full dump
+# amfetchdump locates the right vtape via the changer and writes the
+# dump image — no manual slot loading needed
 cd /restore/amanda
-sudo -u amandabackup amrestore \
-  -p DailySet DailySet-01 | tar xf -
+sudo -u amandabackup amfetchdump -p DailySet backup-server /etc | tar xf -
 
-# Restore specific files/paths
-sudo -u amandabackup amrestore \
-  -p DailySet DailySet-01 | tar xf - ./etc/nginx/
+# Restore specific files/paths from the image
+sudo -u amandabackup amfetchdump -p DailySet backup-server /etc | tar xf - ./etc/nginx/
 ```
 
 ### 13.3 amrecover — Interactive recovery (recommended)
 
 `amrecover` is the interactive restore tool for Amanda. It is the easiest way to recover specific files.
 
+> **Setup required:** `amrecover` talks to the index server (`amindexd`) and tape server (`amidxtaped`) services. On RHEL 10 (no xinetd) these need systemd socket units, or run `amrecover` directly on the backup server as root with `index_server`/`tape_server` set to `localhost` in `/etc/amanda/amanda-client.conf`.
+
 ```bash
 # On the backup server, connect to amrecover
 sudo -u amandabackup amrecover DailySet
 
 # amrecover interactive commands:
-# sethost backup-client-1    - switch to a client
+# sethost backup-client    - switch to a client
 # setdisk /etc               - switch to a DLE
 # setdate 2026-02-17         - pick a date
 # ls                         - list files
@@ -789,12 +775,12 @@ Each set has its own `amanda.conf`, `disklist`, VTL, and cron entry.
 
 ```bash
 # 1. Install Amanda
-sudo dnf install -y amanda amanda-server amanda-client
+sudo dnf install -y amanda-server amanda-client   # see §3.1 RHEL 10 availability note
 
-# 2. Create VTL directory structure
+# 2. Create VTL directory structure (chg-disk expects unpadded slot names)
 sudo mkdir -p /backup/vtl/DailySet
 sudo chown amandabackup:disk /backup/vtl/DailySet
-sudo -u amandabackup bash -c 'for i in $(seq -w 01 05); do mkdir -p /backup/vtl/DailySet/slot${i}; done'
+sudo -u amandabackup bash -c 'for i in $(seq 1 5); do mkdir -p /backup/vtl/DailySet/slot${i}; done'
 
 # 3. Create config directory
 sudo mkdir -p /etc/amanda/DailySet
@@ -810,9 +796,9 @@ sudo chown -R amandabackup:disk /var/log/amanda /var/lib/amanda/DailySet
 ```bash
 # 1. Create amanda.conf (use Section 6 as template)
 # 2. Create disklist with at least 2 DLEs from the local server
-# 3. Label the VTL tapes
-sudo -u amandabackup amlabel DailySet DailySet-01 slot 01
-sudo -u amandabackup amlabel DailySet DailySet-02 slot 02
+# 3. Label the VTL tapes (slot numbers are unpadded)
+sudo -u amandabackup amlabel DailySet DailySet-01 slot 1
+sudo -u amandabackup amlabel DailySet DailySet-02 slot 2
 
 # 4. Run amcheck
 sudo -u amandabackup amcheck DailySet
@@ -898,7 +884,7 @@ sudo -u amandabackup crontab -l
 5. `tapecycle N` defines how many tape slots Amanda rotates through before reusing the oldest one. For example, `tapecycle 10` means Amanda will cycle through 10 tapes before overwriting the first one, giving approximately 10 backup generations.
 6. `index yes` instructs Amanda to create a per-file index of every file in the backup. This index is stored in `indexdir` and is required by `amrecover` to browse and restore individual files. Without it, you can only restore entire DLEs.
 7. Amanda authenticates to clients via **SSH**, using key-based authentication (the `amandabackup` user's SSH private key). The client's `authorized_keys` file has the server's public key, optionally restricted with `command=` to only allow `amandad`.
-8. A **VTL (Virtual Tape Library)** is a directory on disk that Amanda treats as a tape library. Each subdirectory (`slot01`, `slot02`...) is a virtual tape slot. This allows Amanda to be used with disk storage while keeping its tape-based design and rotation logic.
+8. A **VTL (Virtual Tape Library)** is a directory on disk that Amanda treats as a tape library. Each subdirectory (`slot1`, `slot2`...) is a virtual tape slot. This allows Amanda to be used with disk storage while keeping its tape-based design and rotation logic.
 9. `amadmin DailySet force backup-server /etc` marks that DLE as requiring a **Full backup on the next amdump run**, overriding Amanda's normal scheduling calculation. Useful after a system change, restore, or when you know the incremental chain is broken.
 10. `sudo -u amandabackup amreport DailySet` — shows the report for the most recent backup run. Older reports can be viewed with `--log=/var/log/amanda/DailySet/log.YYYYMMDD`.
 

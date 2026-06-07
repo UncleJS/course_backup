@@ -170,7 +170,7 @@ This is where running services store their data. The most important subdirectori
 
 | Path | Contents | Priority |
 |------|----------|----------|
-| `/var/lib/mysql/` or `/var/lib/mariadb/` | MariaDB/MySQL data files | CRITICAL (use consistent backup!) |
+| `/var/lib/mysql/` | MariaDB/MySQL data files (RHEL keeps the historical `mysql` path) | CRITICAL (use consistent backup!) |
 | `/var/lib/postgresql/` | PostgreSQL data | CRITICAL (use consistent backup!) |
 | `/var/lib/pgsql/` | PostgreSQL (RHEL path) | CRITICAL |
 | `/var/lib/containers/` | Podman container data | HIGH |
@@ -184,7 +184,7 @@ This is where running services store their data. The most important subdirectori
 | `/var/named/` | BIND DNS zone data | HIGH (if DNS server) |
 | `/var/lib/samba/` | Samba shares and config | HIGH (if file server) |
 
-**⚠️ Database warning:** Never back up live database data files (`/var/lib/mysql/`, `/var/lib/postgresql/`) using file copy methods while the database is running. Use database-native dump tools instead, then back up the dump file. See Module 09 for details.
+**⚠️ Database warning:** Never back up live database data files (`/var/lib/mysql/`, `/var/lib/postgresql/`) using file copy methods while the database is running. Use database-native dump tools (`mariadb-dump`/`mysqldump`, `pg_dump`) instead, then back up the dump file — or quiesce the database first as shown in Module 05.
 
 [↑ Table of Contents](#table-of-contents)
 
@@ -208,7 +208,7 @@ Contains the Linux kernel, initramfs (initial RAM filesystem), GRUB bootloader c
         └── redhat/
 ```
 
-**Note:** `/boot/efi` is often a separate FAT32 partition. Make sure it is included. On UEFI systems, back up the EFI partition contents explicitly.
+**Note:** `/boot/efi` is a separate VFAT (FAT32) partition on UEFI systems — `lsblk -f` reports it as `vfat`. Make sure it is included, and note that on UEFI the *active* GRUB config is `/boot/efi/EFI/redhat/grub.cfg`, not `/boot/grub2/grub.cfg`. Back up the EFI partition contents explicitly.
 
 **Size:** Usually 500 MB – 2 GB.
 
@@ -575,8 +575,8 @@ cat /etc/backup/manifest.conf
 mount | grep backup   # Should show /backup on a separate volume
 
 # Confirm /proc /sys /dev are virtual (not real data)
-file /proc /sys /dev
-df -T /proc /sys /dev
+findmnt /proc /sys /dev
+mount | grep -E ' /(proc|sys|dev) '
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -610,7 +610,7 @@ df -T /proc /sys /dev
 6. Any three of: `/var/lib/containers/` (Podman), `/etc/containers/`, `/var/lib/libvirt/images/` (KVM), `/etc/systemd/` overrides, `/etc/dnf/` config, `/var/lib/bareos/` (if using Bareos).
 7. If the backup destination is inside the source paths, the backup will include itself, causing infinite loops, inflated archive sizes, and potential corruption.
 8. `du -sh /etc /var/lib`
-9. User crontabs are in `/var/spool/cron/crontabs/` (one file per user). Root's crontab is at `/var/spool/cron/root`.
+9. User crontabs are in `/var/spool/cron/` (one file per user, named after the user). Root's crontab is at `/var/spool/cron/root`.
 10. Back up **volumes** (data), not images. Images can be rebuilt from a container registry. Volumes hold the application data that cannot be recreated.
 
 [↑ Table of Contents](#table-of-contents)

@@ -24,7 +24,7 @@ By the end of this module you will be able to:
   - [3.1 Installing dump](#31-installing-dump)
   - [3.2 The dump level system](#32-the-dump-level-system)
   - [3.3 Level-0 (full) dump](#33-level-0-full-dump)
-  - [3.4 The `/var/lib/dumpdates` file](#34-the-varlibdumpdates-file)
+  - [3.4 The `/etc/dumpdates` file](#34-the-etcdumpdates-file)
   - [3.5 Incremental dump (level 1+)](#35-incremental-dump-level-1)
   - [3.6 Dump options reference](#36-dump-options-reference)
   - [3.7 Restoring with `restore`](#37-restoring-with-restore)
@@ -85,14 +85,14 @@ RHEL 10 uses **XFS** as the default filesystem for all partitions (root, `/home`
 
 - `dump`/`restore` are designed for **ext2/ext3/ext4** filesystems — they do not work on XFS
 - XFS has its own dedicated tools: **`xfsdump`** and **`xfsrestore`**
-- `dump` may still be relevant if you have ext4 partitions (e.g., `/boot` on some systems)
+- On a default RHEL 10 install, **every partition (including `/boot`) is XFS** — ext4 appears only on manually customised or migrated systems
 
 ```bash
 # Verify your filesystem types
 df -T
 lsblk -f
 
-# Check if /boot is ext4 or xfs
+# Confirm /boot is XFS (RHEL 10 default)
 df -T /boot
 ```
 
@@ -104,7 +104,10 @@ df -T /boot
 
 ### 3.1 Installing dump
 
+> **⚠️ RHEL 10 availability:** the classic `dump`/`restore` package is **not available in RHEL 10 repositories** (BaseOS, AppStream, or EPEL 10) — `dnf install dump` fails on a stock system. Treat Part A as **reference material** for older or non-RHEL systems that still use ext4. On RHEL 10 the practical tool is `xfsdump` (Part B).
+
 ```bash
+# On systems where the package exists (older distributions with ext4):
 sudo dnf install -y dump
 ```
 
@@ -133,20 +136,20 @@ sudo dump -0uf /backup/boot-level0-$(date +%Y%m%d).dump /boot
 
 # Flags:
 # -0  = level 0 (full dump)
-# -u  = update /var/lib/dumpdates after successful dump
+# -u  = update /etc/dumpdates after successful dump
 # -f  = output file (or device)
 
 # Dump to a remote host via SSH
 sudo dump -0uf - /boot | ssh backup-server "cat > /backup/boot-level0-$(date +%Y%m%d).dump"
 ```
 
-### 3.4 The `/var/lib/dumpdates` file
+### 3.4 The `/etc/dumpdates` file
 
-`dump -u` writes a record to `/var/lib/dumpdates` after each successful dump. This file tracks when each level was last run, which `dump` uses to determine what has changed.
+`dump -u` writes a record to `/etc/dumpdates` after each successful dump. This file tracks when each level was last run, which `dump` uses to determine what has changed.
 
 ```bash
 # View dump history
-sudo cat /var/lib/dumpdates
+sudo cat /etc/dumpdates
 # Example output:
 # /dev/sda1 0 Mon Feb 17 02:00:00 2026
 # /dev/sda1 1 Mon Feb 24 02:00:00 2026
@@ -167,7 +170,7 @@ sudo dump -2uf /backup/boot-level2-$(date +%Y%m%d).dump /boot
 | Flag | Description |
 |------|-------------|
 | `-0` to `-9` | Dump level |
-| `-u` | Update `/var/lib/dumpdates` |
+| `-u` | Update `/etc/dumpdates` |
 | `-f FILE` | Output to file or device |
 | `-z[N]` | Compress output with zlib (level 1-9) |
 | `-j[N]` | Compress with bzip2 |
@@ -223,6 +226,8 @@ sudo restore -xf /backup/boot-level0-20260224.dump ./grub2/grub.cfg
 
 #### Restore to original location (overwrite)
 
+> **⚠️ Danger:** this overwrites the live filesystem in place. Only do this from rescue media or on a freshly created filesystem — never on a running system you cannot afford to corrupt.
+
 ```bash
 cd /
 sudo restore -rf /backup/boot-level0-20260224.dump
@@ -269,6 +274,8 @@ sudo xfsdump -l 0 -f /backup/home-level0-$(date +%Y%m%d).xfsdump /home
 # -f    = output file or device
 ```
 
+> **Note:** dumping a busy mounted filesystem captures it mid-flight. For consistent backups of active filesystems, freeze first (Section 6) or dump from an LVM snapshot (Module 05).
+
 During the first run, xfsdump prompts for:
 - **Session label** — a human-readable name for this backup (e.g., `root-full-20260224`)
 - **Media label** — a label for the output file/device (e.g., `root-media-001`)
@@ -297,7 +304,7 @@ sudo xfsdump -l 0 \
 | `-s PATH` | Dump only a subtree (subdirectory) of the filesystem |
 | `-I` | Display inventory information |
 | `-J` | Inhibit update of inventory (for testing) |
-| `-e` | Estimate dump size without running |
+| `-e` | Allow files to be excluded from the dump (via extended attributes) |
 | `-v VERBOSITY` | Verbosity: silent, verbose, trace |
 | `-p SECS` | Progress report interval in seconds |
 | `-b SIZE` | Block size |
@@ -345,9 +352,15 @@ sudo xfsdump -I
 
 ### 4.7 Estimating dump size
 
+`xfsdump` has no estimate-only flag — it prints an `estimated dump size` line at the start of every run. To see the estimate without writing a real dump file or polluting the inventory:
+
 ```bash
-# Estimate size before running (no dump is created)
-sudo xfsdump -e -l 0 -f /dev/null /
+# Dump to /dev/null with -J (don't record in inventory); note the
+# "estimated dump size" line near the start of the output, then Ctrl-C
+sudo xfsdump -J -l 0 -f /dev/null /
+
+# Quick approximation without xfsdump
+sudo du -sxh /
 ```
 
 ### 4.8 Dumping over SSH (piped to remote)
@@ -392,15 +405,20 @@ sudo xfsrestore -v verbose -f /backup/root-level0-20260224.xfsdump /restore/root
 
 ### 5.3 Applying incremental restores in order
 
+Chained restores require **cumulative mode (`-r`)** on every step. `xfsrestore -r` keeps a housekeeping directory (`xfsrestorehousekeepingdir`) in the destination to track state between steps.
+
 ```bash
-# 1. Restore the level-0 full dump first
-sudo xfsrestore -f /backup/root-level0-20260217.xfsdump /restore/root/
+# 1. Restore the level-0 full dump first (cumulative mode)
+sudo xfsrestore -r -f /backup/root-level0-20260217.xfsdump /restore/root/
 
 # 2. Apply level-1 incremental
-sudo xfsrestore -f /backup/root-level1-20260218.xfsdump /restore/root/
+sudo xfsrestore -r -f /backup/root-level1-20260218.xfsdump /restore/root/
 
 # 3. Apply level-2 incremental (if any)
-sudo xfsrestore -f /backup/root-level2-20260219.xfsdump /restore/root/
+sudo xfsrestore -r -f /backup/root-level2-20260219.xfsdump /restore/root/
+
+# 4. After the final increment, remove the housekeeping directory
+sudo rm -rf /restore/root/xfsrestorehousekeepingdir
 ```
 
 ### 5.4 Restore a subtree (directory)
@@ -429,7 +447,8 @@ sudo xfsrestore -i -f /backup/root-level0-20260224.xfsdump /restore/
 | `-f FILE` | Input file or device |
 | `-i` | Interactive mode |
 | `-s PATH` | Restore only a subtree |
-| `-r` | Resume an interrupted restore |
+| `-r` | Cumulative mode — apply a level-0 + incremental chain in sequence |
+| `-R` | Resume an interrupted restore |
 | `-S UUID` | Restore specific session by UUID |
 | `-v VERBOSITY` | Verbosity level |
 | `-p SECS` | Progress interval |
@@ -569,7 +588,7 @@ df -T / /home /boot /var
 
 # 3. Identify which tool to use for each
 # XFS -> xfsdump/xfsrestore
-# ext4 -> dump/restore
+# ext4 -> dump/restore (reference only — package not available on RHEL 10, see §3.1)
 ```
 
 ### Lab 04-2: Full xfsdump of /boot or /home
@@ -669,12 +688,12 @@ sudo xfsdump -I
 1. `dump` works on **ext2/ext3/ext4** filesystems only. `xfsdump` works on **XFS** only. Since RHEL 10 defaults to XFS for all partitions, `xfsdump`/`xfsrestore` should be used for almost all RHEL 10 backup operations.
 2. Level 0 is a **complete dump** of the entire filesystem — all files regardless of when they were last modified. It is the baseline from which all incremental levels build.
 3. A level-2 dump backs up all files changed since the **last level-1 dump** (not the last level-0). Each level N backs up changes since the last dump of a lower level.
-4. `dump -u` writes to `/var/lib/dumpdates`. This file records the filesystem, dump level, and timestamp of each successful dump. It allows subsequent incremental dumps to know exactly when the last backup of each level occurred.
+4. `dump -u` writes to `/etc/dumpdates`. This file records the filesystem, dump level, and timestamp of each successful dump. It allows subsequent incremental dumps to know exactly when the last backup of each level occurred.
 5. The **xfsdump inventory** is a database of all xfsdump sessions, stored at `/var/lib/xfsdump/inventory/`. It records session UUIDs, timestamps, levels, and source filesystems, enabling xfsdump to automatically determine what changed since the last backup.
-6. Incrementals must be applied in **chronological order starting with the level-0 full dump**. Apply level-0 first, then level-1, then level-2, etc. Each level builds on the previous.
+6. Incrementals must be applied in **chronological order starting with the level-0 full dump**, using cumulative mode: `xfsrestore -r` for every step (level-0 first, then level-1, then level-2). Remove the `xfsrestorehousekeepingdir` from the destination after the final increment.
 7. `xfs_freeze -f MOUNTPOINT` **pauses all write I/O** to an XFS filesystem while keeping reads active. This provides a crash-consistent state for backup. It is used to create a point-in-time freeze before taking a dump or snapshot. `xfs_freeze -u` unfreezes.
 8. `xfsrestore -s PATH` — restores only the subtree starting at `PATH` relative to the filesystem root.
-9. `xfsdump -e -l LEVEL -f /dev/null MOUNTPOINT` — the `-e` flag estimates the dump size without writing any data.
+9. xfsdump has no estimate-only flag (`-e` means "allow excludes"). Every run prints an `estimated dump size` line at the start — run `xfsdump -J -l LEVEL -f /dev/null MOUNTPOINT`, read the estimate, and abort; or approximate with `du -sx MOUNTPOINT`.
 10. `xfsrestore -i -f DUMPFILE DESTDIR` — launches interactive mode where you can browse, select, and extract files.
 
 [↑ Table of Contents](#table-of-contents)

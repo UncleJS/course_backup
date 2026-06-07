@@ -100,29 +100,29 @@ The most common backup failure modes are:
 
 ```bash
 # List archive contents
-tar -tzf /mnt/backup/etc-20260224.tar.gz | head -50
+tar -tzf /backup/etc-20260224.tar.gz | head -50
 
 # Test extraction (dry-run)
-tar -tzf /mnt/backup/etc-20260224.tar.gz > /dev/null && echo "Archive OK"
+tar -tzf /backup/etc-20260224.tar.gz > /dev/null && echo "Archive OK"
 
 # Full extract preserving xattrs and SELinux
-tar -xzf /mnt/backup/etc-20260224.tar.gz \
+tar -xzf /backup/etc-20260224.tar.gz \
     --xattrs --xattrs-include='*' \
     --selinux \
     --acls \
     -C /restore/staging/
 
 # Extract single file
-tar -xzf /mnt/backup/etc-20260224.tar.gz \
+tar -xzf /backup/etc-20260224.tar.gz \
     -C /restore/staging/ \
     etc/nginx/nginx.conf
 
 # Extract incremental chain (must apply in order)
-tar -xzf /mnt/backup/etc-full-20260217.tar.gz   -C /restore/staging/ \
+tar -xzf /backup/etc-full-20260217.tar.gz   -C /restore/staging/ \
     --xattrs --xattrs-include='*' --selinux --acls
-tar -xzf /mnt/backup/etc-inc-20260218.tar.gz    -C /restore/staging/ \
+tar -xzf /backup/etc-inc-20260218.tar.gz    -C /restore/staging/ \
     --xattrs --xattrs-include='*' --selinux --acls
-tar -xzf /mnt/backup/etc-inc-20260219.tar.gz    -C /restore/staging/ \
+tar -xzf /backup/etc-inc-20260219.tar.gz    -C /restore/staging/ \
     --xattrs --xattrs-include='*' --selinux --acls
 # ... continue through the chain to the desired date
 ```
@@ -148,22 +148,22 @@ tar -xzf /mnt/backup/etc-inc-20260219.tar.gz    -C /restore/staging/ \
 
 ```bash
 # List available snapshots
-ls -lt /mnt/backup/rsync/backup-server/ | head -20
+ls -lt /backup/rsync/backup-server/ | head -20
 
 # Restore specific snapshot to staging
 rsync -aAXH --progress \
-    /mnt/backup/rsync/backup-server/2026/02/24_020000/ \
+    /backup/rsync/backup-server/2026/02/24_020000/ \
     /restore/staging/
 
 # Restore single directory from snapshot
 rsync -aAXH \
-    /mnt/backup/rsync/backup-server/latest/etc/nginx/ \
+    /backup/rsync/backup-server/latest/etc/nginx/ \
     /restore/staging/nginx/
 
 # Live cutover (stop service first!)
 systemctl stop nginx
 rsync -aAXH --delete \
-    /mnt/backup/rsync/backup-server/latest/etc/nginx/ \
+    /backup/rsync/backup-server/latest/etc/nginx/ \
     /etc/nginx/
 systemctl start nginx
 systemctl status nginx
@@ -191,17 +191,17 @@ systemctl status nginx
 xfsrestore -I
 
 # Restore full (level 0) dump
-xfsrestore -f /mnt/backup/xfsdump/data.level0 /restore/target/
+xfsrestore -f /backup/xfsdump/data.level0 /restore/target/
 
 # Restore incremental (level 1) on top of level 0
-xfsrestore -f /mnt/backup/xfsdump/data.level1 /restore/target/
+xfsrestore -f /backup/xfsdump/data.level1 /restore/target/
 
 # Restore single file interactively
-xfsrestore -i -f /mnt/backup/xfsdump/data.level0 /restore/target/
+xfsrestore -i -f /backup/xfsdump/data.level0 /restore/target/
 # At prompt: ls, cd, add <file>, extract
 
 # Non-interactive single file
-xfsrestore -f /mnt/backup/xfsdump/data.level0 \
+xfsrestore -f /backup/xfsdump/data.level0 \
     -s etc/fstab \
     /restore/target/
 
@@ -267,43 +267,44 @@ lvremove -f /dev/backupvg/data_snap
 [ ] Confirm data completeness (spot-check critical files)
 [ ] For live cutover: stop services, restore, relabel, restart
 [ ] Run application smoke tests
-[ ] Tag restored snapshot: restic tag --add "restored-$(date +%Y%m%d)"
+[ ] Tag restored snapshot: restic tag --add "restored-$(date +%Y%m%d)" SNAPSHOT_ID
+    (without a snapshot ID, restic tags EVERY snapshot in the repo)
 ```
 
 **Restore command reference:**
 
 ```bash
 # List all snapshots
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     snapshots
 
 # List files inside a snapshot
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     ls latest
 
 # Restore latest snapshot to staging
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     restore latest \
     --target /restore/staging/
 
 # Restore specific snapshot
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     restore abc12345 \
     --target /restore/staging/
 
 # Restore only a subset of paths
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     restore latest \
     --include /etc/nginx \
     --target /restore/staging/
 
 # Mount snapshot as a FUSE filesystem for interactive browsing
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     mount /mnt/restic_mount &
 ls /mnt/restic_mount/snapshots/latest/
@@ -321,7 +322,7 @@ fusermount -u /mnt/restic_mount
 [ ] Open bconsole and confirm storage daemon and director are running
 [ ] Use "restore" command and select job/client/date
 [ ] Review file selection before submitting
-[ ] Monitor restore job: status client=backup-client
+[ ] Monitor restore job: status client=backup-client-1   (Client resource name from Module 07)
 [ ] Check restore log: list joblog jobid=<id>
 [ ] Verify restored files on client
 [ ] Relabel SELinux contexts if needed: restorecon -Rv /restore/target
@@ -335,7 +336,7 @@ fusermount -u /mnt/restic_mount
 *list jobs
 *restore
   (follow wizard: select client, date range, file path)
-*status client=backup-client-fd
+*status client=backup-client-1
 *list joblog jobid=42
 *quit
 ```
@@ -394,7 +395,7 @@ Phase 3: Restore from backup
          restore latest \
          --target /mnt/sysroot/
  10. Restore /boot separately (may be separate archive):
-     tar -xzf /mnt/backup/boot-latest.tar.gz -C /mnt/sysroot/boot/
+     tar -xzf /backup/boot-latest.tar.gz -C /mnt/sysroot/boot/
 
 Phase 4: Rebuild bootloader
  11. Chroot into restored system:
@@ -402,9 +403,17 @@ Phase 4: Rebuild bootloader
          mount --bind /$d /mnt/sysroot/$d
      done
      chroot /mnt/sysroot /bin/bash
- 12. Reinstall GRUB:
+ 12. Reinstall the bootloader — the method depends on firmware type:
+     # BIOS systems:
      grub2-install /dev/sda
      grub2-mkconfig -o /boot/grub2/grub.cfg
+     # UEFI systems (RHEL: do NOT run grub2-install — reinstall the
+     # signed bootloader packages instead, with /boot/efi mounted):
+     mount /dev/sda1 /boot/efi          # the EFI System Partition
+     dnf reinstall -y grub2-efi-x64 shim-x64
+     grub2-mkconfig -o /boot/efi/EFI/redhat/grub.cfg
+     # If the NVRAM boot entry was lost: efibootmgr -c -d /dev/sda -p 1 \
+     #   -L "Red Hat Enterprise Linux" -l '\EFI\redhat\shimx64.efi'
  13. Rebuild initramfs:
      dracut -f --regenerate-all
  14. Verify /etc/fstab UUIDs match current disk UUIDs:
@@ -453,7 +462,7 @@ Manual restore testing is necessary but not sufficient. Automate file-level veri
 # Run after every backup job to confirm the last snapshot is readable.
 set -euo pipefail
 
-RESTIC_REPO="${RESTIC_REPO:-/mnt/backup/restic}"
+RESTIC_REPO="${RESTIC_REPO:-/backup/restic}"
 RESTIC_PASSWORD_FILE="${RESTIC_PASSWORD_FILE:-/etc/backup/restic-password}"
 VERIFY_TARGET="/tmp/backup-verify-$$"
 ALERT_EMAIL="${ALERT_EMAIL:-root@localhost}"
@@ -612,9 +621,9 @@ for svc in sshd chronyd rsyslog; do
     systemctl is-active --quiet "$svc" && ok "$svc running" || fail "$svc not running"
 done
 
-# User accounts
+# User accounts (replace 'admin' with an account that exists in YOUR environment)
 getent passwd root &>/dev/null && ok "root account exists"  || fail "root account missing"
-getent passwd admin &>/dev/null && ok "admin account exists" || fail "admin account missing" 
+getent passwd admin &>/dev/null && ok "admin account exists" || fail "admin account missing"
 
 # Summary
 echo ""
@@ -637,7 +646,7 @@ Measuring restore speed lets you validate your RTO target is achievable.
 # benchmark-restore.sh
 set -uo pipefail
 
-REPO="${RESTIC_REPO:-/mnt/backup/restic}"
+REPO="${RESTIC_REPO:-/backup/restic}"
 PASSFILE="${RESTIC_PASSWORD_FILE:-/etc/backup/restic-password}"
 TARGET="/tmp/restore-bench-$$"
 mkdir -p "$TARGET"
@@ -653,12 +662,13 @@ restic --repo "$REPO" --password-file "$PASSFILE" \
 
 T_END=$(date +%s%3N)
 ELAPSED_MS=$(( T_END - T_START ))
+(( ELAPSED_MS == 0 )) && ELAPSED_MS=1   # guard against divide-by-zero on tiny restores
 ELAPSED_S=$(echo "scale=1; $ELAPSED_MS / 1000" | bc)
 
 # Measure restored data size
 RESTORED_BYTES=$(du -sb "$TARGET" | cut -f1)
 RESTORED_MB=$(echo "scale=1; $RESTORED_BYTES / 1048576" | bc)
-THROUGHPUT_MB=$(echo "scale=1; $RESTORED_MB / ($ELAPSED_S)" | bc)
+THROUGHPUT_MB=$(echo "scale=1; $RESTORED_MB * 1000 / $ELAPSED_MS" | bc)   # use ms — ELAPSED_S can round to 0.0
 
 log "=== Benchmark Results ==="
 log "Restored data:    ${RESTORED_MB} MB"
@@ -731,7 +741,7 @@ If measured throughput is significantly below these ranges, investigate:
 **Step 1:** Create a test backup.
 
 ```bash
-[server]# tar -czf /mnt/backup/lab10-etc.tar.gz \
+[server]# tar -czf /backup/lab10-etc.tar.gz \
     --xattrs --xattrs-include='*' --selinux --acls \
     /etc/hostname /etc/fstab /etc/passwd /etc/hosts
 ```
@@ -739,13 +749,13 @@ If measured throughput is significantly below these ranges, investigate:
 **Step 2:** Verify archive integrity.
 
 ```bash
-[server]# tar -tzf /mnt/backup/lab10-etc.tar.gz
+[server]# tar -tzf /backup/lab10-etc.tar.gz
 ```
 
 **Step 3:** Restore to staging.
 
 ```bash
-[server]# tar -xzf /mnt/backup/lab10-etc.tar.gz \
+[server]# tar -xzf /backup/lab10-etc.tar.gz \
     --xattrs --xattrs-include='*' --selinux --acls \
     -C /restore/staging/
 ```
@@ -768,7 +778,7 @@ grep -q "^root:" /restore/staging/etc/passwd     && echo "passwd: OK"
 **Step 1:** Restore the latest snapshot to staging.
 
 ```bash
-[server]# restic --repo /mnt/backup/restic \
+[server]# restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     restore latest \
     --include /etc/hostname \
@@ -788,7 +798,7 @@ grep -q "^root:" /restore/staging/etc/passwd     && echo "passwd: OK"
 [server]# dnf install -y fuse
 mkdir -p /mnt/restic_browse
 
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     mount /mnt/restic_browse &
 RESTIC_PID=$!
@@ -813,7 +823,7 @@ wait $RESTIC_PID 2>/dev/null || true
 [server]# cat > /usr/local/sbin/verify-backup.sh << 'SCRIPTEOF'
 #!/usr/bin/env bash
 set -euo pipefail
-RESTIC_REPO="${RESTIC_REPO:-/mnt/backup/restic}"
+RESTIC_REPO="${RESTIC_REPO:-/backup/restic}"
 RESTIC_PASSWORD_FILE="${RESTIC_PASSWORD_FILE:-/etc/backup/restic-password}"
 VERIFY_TARGET="/tmp/backup-verify-$$"
 mkdir -p "$VERIFY_TARGET"
@@ -856,7 +866,7 @@ chmod 700 /usr/local/sbin/verify-backup.sh
 ```bash
 [server]# T_START=$(date +%s)
 
-restic --repo /mnt/backup/restic \
+restic --repo /backup/restic \
     --password-file /etc/backup/restic-password \
     restore latest \
     --target /tmp/restore-bench-$$
@@ -938,7 +948,7 @@ chmod 700 /usr/local/sbin/smoke-test.sh
 
 6. Restoring to staging first allows you to verify correctness, check permissions, and compare against expected output without risking damage to live production data. If the restore is wrong or incomplete, production continues unaffected.
 
-7. `grub2-install /dev/sda` (installs the bootloader to the MBR/EFI partition) and `grub2-mkconfig -o /boot/grub2/grub.cfg` (regenerates the GRUB configuration file with correct kernel paths and UUIDs).
+7. On **BIOS** systems: `grub2-install /dev/sda` plus `grub2-mkconfig -o /boot/grub2/grub.cfg`. On **UEFI** systems (RHEL): do not run `grub2-install` — reinstall the signed bootloader packages (`dnf reinstall grub2-efi-x64 shim-x64`) with `/boot/efi` mounted, and regenerate `/boot/efi/EFI/redhat/grub.cfg`.
 
 8. **Three RTO metrics from a DR drill:**
    - Time from declared incident to first restore command (T₀ → T_start)

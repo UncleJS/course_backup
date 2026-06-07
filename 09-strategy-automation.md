@@ -426,10 +426,10 @@ post_backup_hooks() {
     lvremove -f /dev/backupvg/data_snap
 
     # 2. Verify backup integrity
-    restic check --repo /mnt/backup/restic-repo
+    restic check --repo /backup/restic-repo
 
     # 3. Record backup metadata
-    echo "$(date -Iseconds) backup_size=$(du -sh /mnt/backup | cut -f1)" \
+    echo "$(date -Iseconds) backup_size=$(du -sh /backup | cut -f1)" \
         >> /var/log/backup/metrics.log
 
     # 4. Send completion notification
@@ -461,8 +461,9 @@ run_with_hooks() {
 ### 7.1 Email alerts via `mailx` / `sendmail`
 
 ```bash
-# Install mailx (requires a configured MTA or relay)
-dnf install -y mailx
+# Install s-nail — RHEL 9+ removed the mailx package; s-nail provides the
+# mailx-compatible 'mailx' command (requires a configured MTA or relay)
+dnf install -y s-nail
 
 send_email_alert() {
     local subject="$1"
@@ -561,7 +562,9 @@ Then in each backup `.service` file add:
 
 ```ini
 [Unit]
-OnFailure=backup-alert@%n.service
+# %N = unit name without the .service suffix (%n would include it,
+# producing a broken backup-alert@backup-full.service.service)
+OnFailure=backup-alert@%N.service
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -578,7 +581,7 @@ This script ties together all previous modules into a single configurable wrappe
 #!/usr/bin/env bash
 # =============================================================================
 # backup-master.sh — Unified backup orchestration script
-# Compatible with RHEL 10, Bun-less shell, SELinux enforcing
+# Compatible with RHEL 10, SELinux enforcing
 # =============================================================================
 set -euo pipefail
 IFS=$'\n\t'
@@ -586,7 +589,7 @@ IFS=$'\n\t'
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-BACKUP_ROOT="/mnt/backup"
+BACKUP_ROOT="/backup"
 LOG_DIR="/var/log/backup"
 LOCK_FILE="/run/backup-master.lock"
 ALERT_EMAIL="${ALERT_EMAIL:-root@localhost}"
@@ -594,6 +597,10 @@ SLACK_WEBHOOK_URL="${SLACK_WEBHOOK_URL:-}"
 HOSTNAME_SHORT="$(hostname -s)"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_TYPE="${1:-incremental}"   # full | incremental | differential
+# NOTE: restic snapshots are always content-deduplicated ("incremental by
+# nature") — BACKUP_TYPE only sets the tag and decides when retention runs.
+# The full/incremental distinction is real for tar/xfsdump, organisational
+# for restic.
 
 # Restic configuration
 RESTIC_REPO="${RESTIC_REPO:-${BACKUP_ROOT}/restic}"
@@ -698,10 +705,10 @@ pre_hooks() {
         fi
 
         # Mount snapshot read-only
-        mkdir -p /mnt/backup_snap
-        mount -o ro,nouuid /dev/backupvg/data_snap /mnt/backup_snap \
+        mkdir -p /backup_snap
+        mount -o ro,nouuid /dev/backupvg/data_snap /backup_snap \
             || { err "Snapshot mount failed"; lvremove -f /dev/backupvg/data_snap; return 1; }
-        log "Snapshot mounted at /mnt/backup_snap"
+        log "Snapshot mounted at /backup_snap"
     else
         # No snapshot: just unlock if we locked
         if systemctl is-active --quiet mariadb; then
@@ -717,8 +724,8 @@ post_hooks() {
     log "Running post-backup hooks..."
 
     # Unmount and remove snapshot
-    if mountpoint -q /mnt/backup_snap 2>/dev/null; then
-        umount /mnt/backup_snap
+    if mountpoint -q /backup_snap 2>/dev/null; then
+        umount /backup_snap
         lvremove -f /dev/backupvg/data_snap
         log "Snapshot removed"
     fi
@@ -775,10 +782,18 @@ run_rsync_backup() {
 
     mkdir -p "$snapshot"
 
+    # Build excludes as an array — with IFS set to newline+tab, an unquoted
+    # $(printf ...) would NOT split on spaces and rsync would receive one
+    # giant mangled --exclude argument
+    local rsync_excludes=()
+    for excl in "${EXCLUDES[@]}"; do
+        rsync_excludes+=("--exclude=$excl")
+    done
+
     rsync -aAXH \
         --delete \
         --link-dest="${latest}" \
-        $(printf -- '--exclude=%s ' "${EXCLUDES[@]}") \
+        "${rsync_excludes[@]}" \
         "${BACKUP_SOURCES[@]}" \
         "${snapshot}/"
 
@@ -858,7 +873,7 @@ EOF
 journalctl -t backup --since "25 hours ago" | grep -E "COMPLETE|FAIL"
 
 # 2. How large is the backup repository?
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password stats
+restic --repo /backup/restic --password-file /etc/backup/restic-password stats
 
 # 3. Are all timers firing on schedule?
 systemctl list-timers --all | grep backup
@@ -868,11 +883,11 @@ journalctl -u backup-full.service -u backup-incremental.service \
     --since "7 days ago" | grep -i "fail\|error\|exit code"
 
 # 5. Verify last snapshot exists
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
+restic --repo /backup/restic --password-file /etc/backup/restic-password \
     snapshots --last
 
 # 6. Quick integrity check
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
+restic --repo /backup/restic --password-file /etc/backup/restic-password \
     check --read-data-subset=5%
 ```
 
@@ -994,7 +1009,7 @@ Sun 2026-03-01 01:00:00 UTC  ...  backup-full.timer         backup-full.service
 ### Lab Part B — Test Manual Trigger
 
 ```bash
-[server]# restic init --repo /mnt/backup/restic --password-file /etc/backup/restic-password
+[server]# restic init --repo /backup/restic --password-file /etc/backup/restic-password
 
 # Trigger incremental backup manually (bypasses timer schedule)
 systemctl start backup-incremental.service
@@ -1067,7 +1082,7 @@ ls -lh /var/log/backup/
 ```bash
 [server]# # Run 10 quick "backups" to build snapshot history
 for i in $(seq 1 10); do
-    restic backup --repo /mnt/backup/restic \
+    restic backup --repo /backup/restic \
         --password-file /etc/backup/restic-password \
         --tag "lab-gfs" \
         /etc
@@ -1075,11 +1090,11 @@ for i in $(seq 1 10); do
 done
 
 # List all snapshots
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
+restic --repo /backup/restic --password-file /etc/backup/restic-password \
     snapshots --tag lab-gfs
 
 # Apply GFS retention
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
+restic --repo /backup/restic --password-file /etc/backup/restic-password \
     forget \
     --tag lab-gfs \
     --keep-daily 3 \
@@ -1088,7 +1103,7 @@ restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
     --prune
 
 # Verify snapshots after pruning
-restic --repo /mnt/backup/restic --password-file /etc/backup/restic-password \
+restic --repo /backup/restic --password-file /etc/backup/restic-password \
     snapshots --tag lab-gfs
 ```
 
