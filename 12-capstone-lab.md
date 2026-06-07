@@ -195,7 +195,7 @@ chown -R backupuser:backupuser /backup
 chmod 750 /backup
 
 # Initialize Restic repository
-restic init --repo /backup/restic \
+restic init --repo /backup/restic/backup-client \
     --password-file /etc/backup/restic-password
 ```
 
@@ -253,7 +253,7 @@ echo "rsync backup complete."
 [client]# echo "RESTIC_BACKUP_START=$(date -Iseconds)" >> /root/capstone-times.txt
 
 restic backup \
-    --repo sftp:backupuser@192.168.100.10:/backup/restic \
+    --repo sftp:backupuser@192.168.100.10:/backup/restic/backup-client \
     --password-file /etc/backup/restic-password \
     --tag capstone \
     --tag "host:$(hostname -s)" \
@@ -271,7 +271,7 @@ echo "RESTIC_BACKUP_END=$(date -Iseconds)"  >> /root/capstone-times.txt
 
 # Verify snapshots
 restic snapshots \
-    --repo sftp:backupuser@192.168.100.10:/backup/restic \
+    --repo sftp:backupuser@192.168.100.10:/backup/restic/backup-client \
     --password-file /etc/backup/restic-password
 
 echo "Restic backup complete."
@@ -298,12 +298,12 @@ fi
 ```bash
 [server]# echo "=== Backup sizes ==="
 du -sh /backup/tar/* /backup/rsync/* 2>/dev/null
-du -sh /backup/restic/ 2>/dev/null
+du -sh /backup/restic/backup-client/ 2>/dev/null
 du -sh /backup/xfsdump/* 2>/dev/null
 echo ""
 echo "=== Restic snapshots ==="
 restic snapshots \
-    --repo /backup/restic \
+    --repo /backup/restic/backup-client \
     --password-file /etc/backup/restic-password
 ```
 
@@ -330,7 +330,7 @@ scp /root/pre-disaster-inventory.txt \
 [server]# # Confirm all three backup types exist before destroying the client
 ls -lh /backup/tar/
 ls -lh /backup/rsync/
-restic snapshots --repo /backup/restic --password-file /etc/backup/restic-password
+restic snapshots --repo /backup/restic/backup-client --password-file /etc/backup/restic-password
 echo "All backups confirmed on server. Proceed with destruction."
 ```
 
@@ -476,7 +476,7 @@ export RESTIC_PASSWORD_FILE=/tmp/restic-password
 scp backupuser@192.168.100.10:/etc/backup/restic-password /tmp/restic-password
 
 /usr/local/bin/restic restore latest \
-    --repo sftp:backupuser@192.168.100.10:/backup/restic \
+    --repo sftp:backupuser@192.168.100.10:/backup/restic/backup-client \
     --password-file /tmp/restic-password \
     --target /mnt/sysroot/
 
@@ -864,7 +864,7 @@ rm /etc/hosts
 
 # Restore just that file from restic
 restic restore latest \
-    --repo sftp:backupuser@192.168.100.10:/backup/restic \
+    --repo sftp:backupuser@192.168.100.10:/backup/restic/backup-client \
     --password-file /etc/backup/restic-password \
     --include /etc/hosts \
     --target /
@@ -880,12 +880,12 @@ Restore from a specific snapshot (not the latest) to simulate recovering to a po
 ```bash
 [client]# # List all snapshots
 restic snapshots \
-    --repo sftp:backupuser@192.168.100.10:/backup/restic \
+    --repo sftp:backupuser@192.168.100.10:/backup/restic/backup-client \
     --password-file /etc/backup/restic-password
 
 # Restore from a specific snapshot ID (e.g., abc12345)
 restic restore abc12345 \
-    --repo sftp:backupuser@192.168.100.10:/backup/restic \
+    --repo sftp:backupuser@192.168.100.10:/backup/restic/backup-client \
     --password-file /etc/backup/restic-password \
     --include /etc \
     --target /restore/pitr/
@@ -899,7 +899,7 @@ Restore `backup-client`'s `/home` directory to `backup-server` (simulating a mig
 
 ```bash
 [server]# restic restore latest \
-    --repo /backup/restic \
+    --repo /backup/restic/backup-client \
     --password-file /etc/backup/restic-password \
     --include /home \
     --host backup-client \
@@ -923,7 +923,7 @@ set -euo pipefail
 
 BACKUP_SERVER="192.168.100.10"
 BACKUP_USER="backupuser"
-RESTIC_REPO="sftp:${BACKUP_USER}@${BACKUP_SERVER}:/backup/restic"
+RESTIC_REPO="sftp:${BACKUP_USER}@${BACKUP_SERVER}:/backup/restic/backup-client"
 RESTIC_PASSWORD_FILE="/tmp/restic-password"
 TARGET_DISK="${1:-/dev/sda}"
 SYSROOT="/mnt/sysroot"

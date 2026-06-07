@@ -121,10 +121,15 @@ pvs    # Physical volumes
 vgs    # Volume groups
 lvs    # Logical volumes
 
-# Common RHEL 10 LVM layout
-# VG: rhel
-# LVs: rhel-root (/) and rhel-swap
+# Course lab environment (from the README setup):
+# VG: backupvg (on /dev/sdb, 20G)
+# LVs: datalv (10G, mounted /data) and backuplv (8G, mounted /backup)
+#
+# A default RHEL 10 install additionally has:
+# VG: rhel — LVs: rhel-root (/) and rhel-swap
 ```
+
+This module's examples and labs snapshot **`backupvg/datalv`** (the `/data` volume from the shared lab environment). Snapshotting a system LV such as `/dev/rhel/root` works identically — it just needs free space in *that* VG, which default installs often lack.
 
 ### Available free space in the Volume Group
 
@@ -134,12 +139,13 @@ The snapshot needs free space in the same VG as the source LV.
 # Check free space in each VG
 vgs --units g
 
-# Example output:
-#   VG    #PV #LV #SN Attr   VSize  VFree
-#   rhel    1   2   0 wz--n- 99.00g 10.00g
+# Example output (lab environment — 10G + 8G allocated of 20G):
+#   VG        #PV #LV #SN Attr   VSize  VFree
+#   backupvg    1   2   0 wz--n- 20.00g  2.00g
+#   rhel        1   2   0 wz--n- 99.00g     0g
 ```
 
-You need at least **10–20% of the source LV size** as free space for the snapshot. More is better if the system is write-heavy.
+You need at least **10–20% of the source LV size** as free space for the snapshot — more if the volume is write-heavy. The lab VG's ~2G free is enough for the 1G snapshots used in this module.
 
 [↑ Table of Contents](#table-of-contents)
 
@@ -154,15 +160,17 @@ Thick snapshots are the traditional LVM snapshot type. They reserve space up fro
 ```bash
 # Syntax: lvcreate -L SIZE -s -n SNAPNAME SOURCE_LV
 
-# Snapshot the root LV (adjust VG/LV names to match yours)
-sudo lvcreate -L 5G -s -n root_snap /dev/rhel/root
+# Snapshot the lab data volume (/data)
+sudo lvcreate -L 1G -s -n data_snap /dev/backupvg/datalv
 
-# Snapshot /home
-sudo lvcreate -L 3G -s -n home_snap /dev/rhel/home
+# System-VG example: snapshot the root LV
+# (works the same — requires free space in the 'rhel' VG)
+sudo lvcreate -L 5G -s -n root_snap /dev/rhel/root
 
 # Verify snapshot was created
 sudo lvs
-# Look for Attr column showing "swi-a-s--" (s = snapshot, w = writable, i = inherited)
+# In the Attr column ("swi-a-s---"): position 1 's' = snapshot volume type,
+# position 2 'w' = writable, position 3 'i' = inherited allocation policy
 ```
 
 ### 4.2 Viewing snapshot information
@@ -187,11 +195,11 @@ sudo mkdir -p /mnt/snapshot
 # For XFS (the RHEL 10 default) you MUST add 'nouuid' — the snapshot has the
 # same filesystem UUID as the still-mounted origin, and a plain mount fails
 # with a duplicate-UUID error:
-sudo mount -o ro,nouuid /dev/rhel/root_snap /mnt/snapshot
+sudo mount -o ro,nouuid /dev/backupvg/data_snap /mnt/snapshot
 
 # Verify
 df -h /mnt/snapshot
-ls /mnt/snapshot/etc/
+ls /mnt/snapshot/configs/
 ```
 
 **Why `nouuid`?** XFS embeds a UUID in the filesystem. The snapshot has the same UUID as the original. Linux will refuse to mount two XFS filesystems with the same UUID without the `nouuid` option.
@@ -203,7 +211,7 @@ ls /mnt/snapshot/etc/
 sudo umount /mnt/snapshot
 
 # Remove the snapshot LV
-sudo lvremove -f /dev/rhel/root_snap
+sudo lvremove -f /dev/backupvg/data_snap
 
 # Verify it's gone
 sudo lvs
@@ -230,9 +238,9 @@ Thin provisioning uses a **thin pool** — a pool of storage shared among many t
 ### 5.2 Creating a thin pool
 
 ```bash
-# Create a thin pool LV in the VG
-# (Requires free space in the VG)
-sudo lvcreate -L 20G --thinpool thinpool rhel
+# Create a thin pool LV in the lab VG — sized to the ~2G of free space
+# (remove any thick snapshots from Section 4 first: lvremove backupvg/data_snap)
+sudo lvcreate -L 1G --thinpool thinpool backupvg
 
 # Verify
 sudo lvs
@@ -242,26 +250,29 @@ sudo lvs
 ### 5.3 Creating a thin LV and thin snapshot
 
 ```bash
-# Create a thin LV in the pool
-sudo lvcreate -V 10G --thin -n thindata rhel/thinpool
+# Create a thin LV in the pool. The VIRTUAL size (-V) may exceed the pool —
+# thin provisioning over-provisions; blocks are allocated only when written
+sudo lvcreate -V 5G --thin -n thindata backupvg/thinpool
 
 # Format and mount the thin LV
-sudo mkfs.xfs /dev/rhel/thindata
-sudo mkdir -p /data/thin
-sudo mount /dev/rhel/thindata /data/thin
+sudo mkfs.xfs /dev/backupvg/thindata
+sudo mkdir -p /mnt/thindata
+sudo mount /dev/backupvg/thindata /mnt/thindata
 
 # Create a thin snapshot (no size required — uses pool space dynamically)
-sudo lvcreate -s --name thindata_snap rhel/thindata
+sudo lvcreate -s --name thindata_snap backupvg/thindata
 
 # Mount the thin snapshot
-sudo mount -o ro,nouuid /dev/rhel/thindata_snap /mnt/snapshot
+sudo mount -o ro,nouuid /dev/backupvg/thindata_snap /mnt/snapshot
 ```
+
+> **⚠️ Over-provisioning cuts both ways:** the 5G virtual LV above lives in a 1G pool. If real writes exceed the pool's capacity, **all** thin LVs in the pool error out. Always configure pool auto-extension (5.4) or monitor pool usage closely.
 
 ### 5.4 Monitoring thin pool usage
 
 ```bash
 # Check thin pool data and metadata usage
-sudo lvs -a rhel/thinpool
+sudo lvs -a backupvg/thinpool
 
 # Set automatic extension of thin pool (prevent overflow)
 sudo lvmconfig activation/thin_pool_autoextend_threshold
@@ -301,7 +312,7 @@ A general rule: allocate **15–20% of the source LV size** for the snapshot, or
 ```bash
 # How many writes happen per minute on the LV?
 # Check iostat for the device
-iostat -x 1 10 | grep $(lvs --noheadings -o devices /dev/rhel/root | tr -d ' ')
+iostat -x 1 10 | grep $(lvs --noheadings -o devices /dev/backupvg/datalv | tr -d ' ')
 
 # Conservative approach: use thin snapshots so overflow is automatically managed
 ```
@@ -309,11 +320,11 @@ iostat -x 1 10 | grep $(lvs --noheadings -o devices /dev/rhel/root | tr -d ' ')
 ### Extending a thick snapshot that is filling up
 
 ```bash
-# Extend the snapshot CoW space (add 2GB more)
-sudo lvextend -L +2G /dev/rhel/root_snap
+# Extend the snapshot CoW space (add 1GB more)
+sudo lvextend -L +1G /dev/backupvg/data_snap
 
 # Or resize to a specific size
-sudo lvextend -L 8G /dev/rhel/root_snap
+sudo lvextend -L 2G /dev/backupvg/data_snap
 ```
 
 ### Automatic extension (recommended safety net)
@@ -344,52 +355,54 @@ The snapshot is a **tool for consistency**, not a backup by itself. The workflow
 5. Remove snapshot
 ```
 
+All examples snapshot the lab volume `backupvg/datalv` (`/data`) and write the backup to `/backup`. For a system volume, substitute e.g. `/dev/rhel/root` — the workflow is identical.
+
 ### 7.1 Snapshot + xfsdump
 
 ```bash
-sudo lvcreate -L 5G -s -n root_snap /dev/rhel/root
-sudo mkdir -p /mnt/root_snap
-sudo mount -o ro,nouuid /dev/rhel/root_snap /mnt/root_snap
+sudo lvcreate -L 1G -s -n data_snap /dev/backupvg/datalv
+sudo mkdir -p /mnt/data_snap
+sudo mount -o ro,nouuid /dev/backupvg/data_snap /mnt/data_snap
 
 sudo xfsdump -l 0 \
-  -L "root-snap-$(date +%Y%m%d)" \
-  -M "root-snap-media" \
-  -f /backup/root-snap-$(date +%Y%m%d).xfsdump \
-  /mnt/root_snap
+  -L "data-snap-$(date +%Y%m%d)" \
+  -M "data-snap-media" \
+  -f /backup/data-snap-$(date +%Y%m%d).xfsdump \
+  /mnt/data_snap
 
-sudo umount /mnt/root_snap
-sudo lvremove -f /dev/rhel/root_snap
+sudo umount /mnt/data_snap
+sudo lvremove -f /dev/backupvg/data_snap
 ```
 
 ### 7.2 Snapshot + rsync
 
 ```bash
-sudo lvcreate -L 5G -s -n home_snap /dev/rhel/home
-sudo mkdir -p /mnt/home_snap
-sudo mount -o ro,nouuid /dev/rhel/home_snap /mnt/home_snap
+sudo lvcreate -L 1G -s -n data_snap /dev/backupvg/datalv
+sudo mkdir -p /mnt/data_snap
+sudo mount -o ro,nouuid /dev/backupvg/data_snap /mnt/data_snap
 
 sudo rsync -aAXvh --delete --numeric-ids \
-  /mnt/home_snap/ \
-  /backup/home-$(date +%Y-%m-%d)/
+  /mnt/data_snap/ \
+  /backup/data-$(date +%Y-%m-%d)/
 
-sudo umount /mnt/home_snap
-sudo lvremove -f /dev/rhel/home_snap
+sudo umount /mnt/data_snap
+sudo lvremove -f /dev/backupvg/data_snap
 ```
 
 ### 7.3 Snapshot + tar
 
 ```bash
-sudo lvcreate -L 5G -s -n etc_snap /dev/rhel/root
-sudo mkdir -p /mnt/etc_snap
-sudo mount -o ro,nouuid /dev/rhel/etc_snap /mnt/etc_snap
+sudo lvcreate -L 1G -s -n data_snap /dev/backupvg/datalv
+sudo mkdir -p /mnt/data_snap
+sudo mount -o ro,nouuid /dev/backupvg/data_snap /mnt/data_snap
 
-sudo tar -czpf /backup/etc-snap-$(date +%Y%m%d).tar.gz \
+sudo tar -czpf /backup/configs-snap-$(date +%Y%m%d).tar.gz \
   --xattrs --acls --selinux --numeric-owner \
-  -C /mnt/etc_snap \
-  etc/
+  -C /mnt/data_snap \
+  configs/
 
-sudo umount /mnt/etc_snap
-sudo lvremove -f /dev/rhel/etc_snap
+sudo umount /mnt/data_snap
+sudo lvremove -f /dev/backupvg/data_snap
 ```
 
 [↑ Table of Contents](#table-of-contents)
@@ -417,8 +430,10 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"; }
 # Define source LVs and their config:
 # Format: "VG/LV:MOUNT:SNAP_SIZE_GB:BACKUP_NAME"
 VOLUMES=(
-  "rhel/root:/:5G:root"
-  "rhel/home:/home:3G:home"
+  "backupvg/datalv:/data:1G:data"
+  # System-VG examples — require free space in the 'rhel' VG:
+  # "rhel/root:/:5G:root"
+  # "rhel/home:/home:3G:home"
 )
 
 # Cleanup function - always runs on exit
@@ -495,7 +510,7 @@ sudo chmod +x /usr/local/bin/lvm-snapshot-backup.sh
 
 ## 9. Database-Consistent Snapshots
 
-For databases, combine a pre-freeze step with the LVM snapshot:
+For databases, combine a pre-freeze step with the LVM snapshot. These are **production examples** — they snapshot the system VG where the database files (`/var/lib/mysql`, `/var/lib/pgsql`) actually live; substitute your VG/LV names.
 
 ### MariaDB/MySQL
 
@@ -567,14 +582,16 @@ In addition to backing up to a secondary location, you can restore directly from
 ```bash
 # If the snapshot is still mounted (not yet removed):
 # Restore a single file from the snapshot
-sudo cp /mnt/root_snap/etc/nginx/nginx.conf /etc/nginx/nginx.conf
+sudo cp /mnt/data_snap/configs/hosts /data/configs/hosts
 
 # Or use rsync to restore a directory
-sudo rsync -aAXh /mnt/root_snap/etc/nginx/ /etc/nginx/
+sudo rsync -aAXh /mnt/data_snap/configs/ /data/configs/
 
 # ⚠️ WARNING: Merging a snapshot back into the origin LV replaces ALL data
 # Only do this for full roll-back scenarios, not partial restores
-sudo lvconvert --merge /dev/rhel/root_snap
+sudo umount /mnt/data_snap /data        # origin must not be in use to merge now
+sudo lvconvert --merge /dev/backupvg/data_snap
+sudo mount /data                        # remount the rolled-back volume
 # If the origin is in use (e.g. the root filesystem), the merge is deferred
 # to the next activation — i.e. the next reboot. For an origin you can
 # unmount, the merge starts immediately (umount, then lvconvert --merge).
@@ -592,18 +609,17 @@ sudo lvconvert --merge /dev/rhel/root_snap
 # 1. Find your LVM layout
 sudo pvs && sudo vgs && sudo lvs
 
-# 2. Confirm free space in the VG
-sudo vgs --units g
+# 2. Confirm free space in the lab VG (~2G after the README setup)
+sudo vgs --units g backupvg
 
-# 3. Create a snapshot of /home (or root if no /home LV)
-# Replace 'rhel' and 'home' with your VG and LV names
-sudo lvcreate -L 2G -s -n test_snap /dev/rhel/home
+# 3. Create a snapshot of the /data volume
+sudo lvcreate -L 1G -s -n test_snap /dev/backupvg/datalv
 
 # 4. View snapshot details
 sudo lvs -o lv_name,lv_size,snap_percent,origin,lv_attr
 
 # 5. Check CoW usage (should be low — just created)
-sudo lvs --noheadings -o snap_percent /dev/rhel/test_snap
+sudo lvs --noheadings -o snap_percent /dev/backupvg/test_snap
 ```
 
 ### Lab 05-2: Mount snapshot and verify consistency
@@ -611,17 +627,16 @@ sudo lvs --noheadings -o snap_percent /dev/rhel/test_snap
 ```bash
 # 1. Mount the snapshot
 sudo mkdir -p /mnt/test_snap
-sudo mount -o ro,nouuid /dev/rhel/test_snap /mnt/test_snap
+sudo mount -o ro,nouuid /dev/backupvg/test_snap /mnt/test_snap
 
-# 2. Create a file in the ORIGINAL /home
-sudo touch /home/after-snapshot-file.txt
-echo "this was written after snapshot" | sudo tee /home/after-snapshot-file.txt
+# 2. Create a file in the ORIGINAL /data
+echo "this was written after snapshot" | sudo tee /data/after-snapshot-file.txt
 
 # 3. Check the snapshot — the new file should NOT appear
 ls /mnt/test_snap/   # after-snapshot-file.txt should be absent
 
 # 4. Check original
-ls /home/            # after-snapshot-file.txt should be present
+ls /data/            # after-snapshot-file.txt should be present
 ```
 
 ### Lab 05-3: Back up from snapshot using rsync
@@ -630,34 +645,36 @@ ls /home/            # after-snapshot-file.txt should be present
 # Backup from the mounted snapshot
 sudo rsync -aAXvh --delete --numeric-ids \
   /mnt/test_snap/ \
-  /backup/home-snap-$(date +%Y-%m-%d)/
+  /backup/data-snap-$(date +%Y-%m-%d)/
 
 # Verify
-ls /backup/home-snap-$(date +%Y-%m-%d)/
+ls /backup/data-snap-$(date +%Y-%m-%d)/
 ```
 
 ### Lab 05-4: Monitor and clean up
 
 ```bash
 # 1. Check snapshot fill percentage
-sudo lvs -o lv_name,snap_percent /dev/rhel/test_snap
+sudo lvs -o lv_name,snap_percent /dev/backupvg/test_snap
 
-# 2. Write some data to /home to see CoW space increase
-dd if=/dev/urandom bs=1M count=100 of=/home/cow_test.bin
+# 2. Write some data to /data to see CoW space increase
+sudo dd if=/dev/urandom bs=1M count=100 of=/data/cow_test.bin
 
 # 3. Check snapshot fill again
-sudo lvs -o lv_name,snap_percent /dev/rhel/test_snap
+sudo lvs -o lv_name,snap_percent /dev/backupvg/test_snap
 
 # 4. Unmount and remove
 sudo umount /mnt/test_snap
-sudo lvremove -f /dev/rhel/test_snap
+sudo lvremove -f /dev/backupvg/test_snap
 sudo lvs  # Confirm snapshot is gone
+sudo rm -f /data/cow_test.bin /data/after-snapshot-file.txt   # tidy the lab volume
 ```
 
 ### Lab 05-5: Run the production snapshot backup script
 
 ```bash
-# Edit the script to match your VG/LV names
+# The script targets backupvg/datalv by default — edit VOLUMES if your
+# layout differs (e.g. enable the rhel/root example lines)
 sudo nano /usr/local/bin/lvm-snapshot-backup.sh
 
 # Run it
@@ -682,7 +699,7 @@ sudo cat /var/log/lvm-snapshot-backup.log
 7. How do you check how full a snapshot's CoW space is?
 8. What does `lvconvert --merge` do, and when should it be used?
 9. How do you ensure a MariaDB database is consistent before taking an LVM snapshot?
-10. What command creates a 5GB snapshot of `/dev/rhel/home` named `home_backup`?
+10. What command creates a 1GB snapshot of `/dev/backupvg/datalv` named `data_backup`?
 
 [↑ Table of Contents](#table-of-contents)
 
@@ -699,7 +716,7 @@ sudo cat /var/log/lvm-snapshot-backup.log
 7. `lvs -o lv_name,snap_percent` — shows the percentage of CoW space used. Also `lvs --noheadings -o snap_percent /dev/VG/SNAP`.
 8. `lvconvert --merge SNAP_LV` merges the snapshot back into the origin LV, replacing its content. If the origin is in use (e.g. the root filesystem) the merge is deferred to the next activation/reboot; an unmounted origin merges immediately. Used for rolling back a volume to a previous state. Not for partial restores — it replaces all data.
 9. In an **interactive MariaDB session that stays open**, issue `FLUSH TABLES WITH READ LOCK;` (the lock dies with the session, so a one-shot `mysql -e` will not work). While that session holds the lock, create the LVM snapshot from a second terminal, then release with `UNLOCK TABLES;` in the same session. The lock window is only as long as the `lvcreate` takes (typically under a second).
-10. `sudo lvcreate -L 5G -s -n home_backup /dev/rhel/home`
+10. `sudo lvcreate -L 1G -s -n data_backup /dev/backupvg/datalv`
 
 [↑ Table of Contents](#table-of-contents)
 

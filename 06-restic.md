@@ -268,8 +268,8 @@ sudo -E restic snapshots
 # Example output:
 # ID        Time                 Host        Tags        Paths
 # --------  -------------------  ----------  ----------  -----------
-# a1b2c3d4  2026-02-17 02:00:05  web01                   /etc /home
-# e5f6a7b8  2026-02-18 02:00:07  web01                   /etc /home
+# a1b2c3d4  2026-02-17 02:00:05  backup-client                   /etc /home
+# e5f6a7b8  2026-02-18 02:00:07  backup-client                   /etc /home
 
 # List snapshots for a specific host
 sudo -E restic snapshots --host $(hostname)
@@ -336,10 +336,10 @@ sudo -E restic mount /mnt/restic &
 
 # Browse the snapshot
 ls /mnt/restic/
-ls /mnt/restic/hosts/web01/latest/etc/
+ls /mnt/restic/hosts/backup-client/latest/etc/
 
 # Copy specific files
-sudo cp /mnt/restic/hosts/web01/latest/etc/ssh/sshd_config /etc/ssh/sshd_config.restored
+sudo cp /mnt/restic/hosts/backup-client/latest/etc/ssh/sshd_config /etc/ssh/sshd_config.restored
 
 # Unmount
 sudo umount /mnt/restic
@@ -386,20 +386,20 @@ Restic separates **forgetting** (deleting snapshot references) from **pruning** 
 sudo -E restic forget \
   --keep-daily 7 \
   --keep-weekly 4 \
-  --keep-monthly 6 \
-  --keep-yearly 1
+  --keep-monthly 12 \
+  --keep-yearly 7
 
 # Dry run — shows what would be removed without doing it
 sudo -E restic forget \
-  --keep-daily 7 --keep-weekly 4 --keep-monthly 6 \
+  --keep-daily 7 --keep-weekly 4 --keep-monthly 12 \
   --dry-run
 
 # Forget AND prune in one command (saves time)
 sudo -E restic forget \
   --keep-daily 7 \
   --keep-weekly 4 \
-  --keep-monthly 6 \
-  --keep-yearly 1 \
+  --keep-monthly 12 \
+  --keep-yearly 7 \
   --prune
 ```
 
@@ -821,8 +821,8 @@ log "Applying retention policy..."
 restic forget \
   --keep-daily 7 \
   --keep-weekly 4 \
-  --keep-monthly 6 \
-  --keep-yearly 1 \
+  --keep-monthly 12 \
+  --keep-yearly 7 \
   --prune \
   2>>"${LOG_FILE}" && log "Forget/prune OK" || log "Forget/prune WARNING"
 

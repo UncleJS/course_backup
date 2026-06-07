@@ -148,6 +148,7 @@ These are separate operations. You can have an uncompressed tar archive (`.tar`)
 | `--exclude-from=` | `--exclude-from=` | Read exclusions from a file |
 | `-C` | `--directory=` | Change to directory before extracting |
 | `--numeric-owner` | | Use numeric UID/GID (portable) |
+| `-d` | `--compare` | Compare archive contents against the filesystem (verify) |
 | `-h` | `--dereference` | Follow symlinks |
 
 [↑ Table of Contents](#table-of-contents)
@@ -479,10 +480,10 @@ Consistent naming prevents confusion and enables automation:
 PATTERN:  {hostname}-{source}-{type}-{date}-{time}.tar.{ext}
 
 Examples:
-  web01-etc-full-20260224-0200.tar.gz
-  web01-etc-incr-20260225-0200.tar.gz
-  web01-home-full-20260217-0300.tar.xz
-  db01-varlib-full-20260224-0100.tar.gz
+  backup-client-etc-full-20260224-0200.tar.gz
+  backup-client-etc-incr-20260225-0200.tar.gz
+  backup-client-home-full-20260217-0300.tar.xz
+  backup-server-varlib-full-20260224-0100.tar.gz
 ```
 
 ```bash
@@ -642,7 +643,7 @@ tar -czpf /backup/incr_test/full-$(date +%Y%m%d).tar.gz \
   --listed-incremental=/backup/snapshots/incr_test.snar \
   /tmp/incr_source/
 echo "Level-0 done. Snapshot:"
-cat /backup/snapshots/incr_test.snar | strings | head -5
+strings /backup/snapshots/incr_test.snar | head -5
 
 # 3. Make changes
 echo "file3 NEW" > /tmp/incr_source/file3.txt

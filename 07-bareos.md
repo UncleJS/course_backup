@@ -682,6 +682,7 @@ FileSet {
     File = /opt
     File = /srv
     File = /usr/local
+    File = /data              # the course lab data volume
   }
 
   Exclude {
@@ -846,9 +847,11 @@ sudo tee /etc/bareos/bareos-dir.d/storage/File.conf <<'EOF'
 Storage {
   Name = FileStorage
 
-  # Hostname/IP of the Storage Daemon
-  # Use "localhost" if SD is on the same machine as Director
-  Address = localhost
+  # Hostname/IP of the Storage Daemon.
+  # ⚠️ Clients connect to the SD at THIS address — it must be reachable from
+  # every File Daemon, so use the server's real name/IP, never "localhost",
+  # as soon as any remote client exists (Section 12).
+  Address = backup-server
 
   # Port the Storage Daemon listens on
   SD Port = 9103
@@ -1057,10 +1060,13 @@ Device {
   # Volume Poll Interval = 360
 }
 
-# Second device for incremental backups (separate directory)
+# Optional second device for incremental backups (separate directory).
+# NOTE: to actually route jobs here, the Director also needs a matching
+# Storage resource (like 4.8) with Device = FileStorageIncremental and its
+# own Media Type — otherwise this device is defined but never used.
 Device {
   Name = FileStorageIncremental
-  Media Type = File
+  Media Type = FileIncr
   Archive Device = /backup/bareos-incr
   Label Media = yes
   Random Access = yes
@@ -1822,7 +1828,7 @@ sudo grep -i "error\|failed\|warn" /var/log/bareos/bareos.log | tail -50
 
 ```bash
 sudo bconsole
-# Summary of recent jobs
+# Summary of the last 7 jobs (a job count, not days)
 *list jobs last=7
 
 # Jobs that failed
@@ -2315,12 +2321,7 @@ name = sunflower
 ;configuration_resource_graph = false
 ```
 
-After any change to `configuration.ini` or `directors.ini`:
-
-```bash
-# No service restart needed — the PHP app reads these files on every request.
-# Clear your browser cache if old settings appear to persist.
-```
+After any change to `configuration.ini` or `directors.ini`, no service restart is needed — the PHP app reads these files on every request. Clear your browser cache if old settings appear to persist.
 
 ### 17.10 Bvfs Cache — Keep the File-Tree Browser Responsive
 
@@ -2354,7 +2355,8 @@ Run Script {
 
 ```bash
 sudo bconsole
-*update bvfs jobid=all
+# .bvfs_update with no jobid argument processes all jobs not yet in the cache
+*.bvfs_update
 *quit
 ```
 

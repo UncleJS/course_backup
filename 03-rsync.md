@@ -207,10 +207,11 @@ sudo rsync -aAXvh --delete --numeric-ids --stats /etc/ /backup/etc/
 ### Push: source machine sends to remote server
 
 ```bash
-# Push /etc to backup-server
+# Push /etc to backup-server — use a dedicated unprivileged account on the
+# receiving side (direct root@ SSH contradicts the hardening in Section 6)
 sudo rsync -aAXvz --delete --numeric-ids \
   /etc/ \
-  root@backup-server:/backup/clients/$(hostname)/etc/
+  backupuser@backup-server:/backup/clients/$(hostname)/etc/
 
 # With explicit SSH options
 sudo rsync -aAXvz --delete --numeric-ids \
@@ -367,17 +368,14 @@ SOURCES=(
   "/usr/local"
 )
 
+# Exclude patterns are matched RELATIVE to each transfer root — with the
+# specific SOURCES above, only file patterns are useful here. (Anchored paths
+# like /proc or /tmp only matter when backing up / itself.)
 EXCLUDES=(
-  "--exclude=/proc"
-  "--exclude=/sys"
-  "--exclude=/dev"
-  "--exclude=/run"
-  "--exclude=/tmp"
-  "--exclude=/var/tmp"
-  "--exclude=/var/cache"
-  "--exclude=/backup"
   "--exclude=*.swp"
   "--exclude=*.tmp"
+  "--exclude=.cache/"
+  "--exclude=lost+found"
 )
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"; }

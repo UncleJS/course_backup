@@ -638,22 +638,16 @@ warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*"; logger -t backup -p l
 err()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*"; logger -t backup -p local0.err   "$*"; }
 
 # ---------------------------------------------------------------------------
-# Locking (prevent overlapping runs)
+# Locking (prevent overlapping runs) — flock is atomic, unlike a hand-rolled
+# PID file (check-then-write has a race), and the kernel releases the lock
+# automatically when the process exits, so stale locks cannot occur
 # ---------------------------------------------------------------------------
 acquire_lock() {
-    if [[ -f "$LOCK_FILE" ]]; then
-        local pid
-        pid=$(cat "$LOCK_FILE")
-        if kill -0 "$pid" 2>/dev/null; then
-            err "Another backup is running (PID $pid). Aborting."
-            exit 1
-        else
-            warn "Stale lock file found. Removing."
-            rm -f "$LOCK_FILE"
-        fi
+    exec 9>"$LOCK_FILE"
+    if ! flock -n 9; then
+        err "Another backup is running (lock held on $LOCK_FILE). Aborting."
+        exit 1
     fi
-    echo $$ > "$LOCK_FILE"
-    trap 'rm -f "$LOCK_FILE"' EXIT
 }
 
 # ---------------------------------------------------------------------------

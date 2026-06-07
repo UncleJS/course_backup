@@ -140,19 +140,21 @@ The course is well structured (consistent template, complete navigation chain, a
 
 ---
 
-## Recommendations (not changed — author's call)
+## Recommendations — resolution status (second pass, same day)
 
-1. **Module 05 ignores the shared lab environment entirely** — every example/lab uses `/dev/rhel/root` and `/dev/rhel/home` (a default install often has no separate `home` LV, so Labs 05-1…05-4 won't run as written), and the thin-pool examples need 20G that the README's VG layout (10G + 8G of a 20G disk) cannot provide. Recommend rewriting labs against `backupvg/datalv` (`/data`) and sizing thin examples to ~2G, or stating the extra-disk requirement up front.
-2. **Retention policy contradiction:** Module 09 prescribes `--keep-monthly 12 --keep-yearly 7` as the course standard; Module 06 configures `--keep-monthly 6 --keep-yearly 1` in every example. Align (or explain the difference once).
-3. **Prompt-convention split:** README defines `#`/`$`/`[server]#` prompts, but modules 00–08 use `sudo`-style exclusively; only 09–12 follow the README. Pick one course-wide (or document both in README).
-4. **Stray hostnames** `web01`/`db01` in modules 02/06 example output — cosmetic, but the README promises a consistent environment (`backup-server`/`backup-client`).
-5. **Module 12 restic repo layout** is flat (`/backup/restic`) while Module 06 taught per-host (`/backup/restic/$(hostname)`); Extension C's `--host` filter only makes sense multi-host. Standardise on the Module 06 layout.
-6. **Module 07 leftovers:** the SD defines a second device (`FileStorageIncremental`) with no Director-side Storage resource; `DefaultFileSet` never includes the lab's `/data` volume; all `Address` fields use `localhost` rather than the lab IPs; §17.9 ends with an empty comment-only code block; the 13-item restore-menu listing should be re-checked against live bconsole output; `*update bvfs jobid=all` vs the `.bvfs_update` dot-command; `list jobs last=7` is a job count, not days.
-7. **Module 03:** most entries in the production script's exclude list (`/proc`, `/sys`, …) are no-ops for the chosen sources (copied from a rootfs profile) — trim or back up `/`; the push examples use `root@backup-server` which the module's own hardening section argues against.
-8. **Module 09:** the hand-rolled PID-file lock has a TOCTOU race — `flock` would match the module's robustness theme; `exec > >(tee …)` plus journal double-logs.
-9. **Module 11:** the auditd rule watches `/usr/bin/restic` — correct for the EPEL install, but add `/usr/local/bin/restic` if the manual install path from Module 06 §2.2 was used.
-10. **Module 02:** `-d`/`--compare` (used in §6) is missing from the flags reference table.
-11. **Mirror/sync wording** (M00 §3.5 vs Answer 4): align the answer with the body's "not a backup *unless versioned*" nuance.
+All items below were resolved in a follow-up pass; decisions marked *(author)* were confirmed with the course author.
+
+1. ✅ **Module 05 rewritten to the shared lab environment** *(author)* — examples and labs now snapshot `backupvg/datalv` (`/data`, 1G snapshots fitting the ~2G free VG space); thin-pool section resized (1G pool, 5G over-provisioned thin LV — used as a teaching point with warning); one clearly-marked `/dev/rhel/root` system-VG example retained; §9 DB examples annotated as production examples; labs, Q10/A10, and the attr-decode gloss all updated.
+2. ✅ **Retention standardised on 12 monthly / 7 yearly** *(author)* — module 06's five `--keep-monthly 6 --keep-yearly 1` occurrences updated to match module 09.
+3. ✅ **Prompt-convention split documented in README** *(author)* — conventions section now explains both styles: `sudo` blocks in tool modules 00–08, prompt markers in scenario modules 09–12.
+4. ✅ Stray hostnames `web01`/`db01` replaced with `backup-client`/`backup-server` in modules 02 and 06.
+5. ✅ Module 12 restic repo converted to the per-host layout `/backup/restic/backup-client` (literal hostname rather than `$(hostname)` so the path also works from a rescue shell).
+6. ✅ Module 07: Director Storage `Address` changed from `localhost` to `backup-server` with a warning (clients connect to the SD at this address); `File = /data` added to `DefaultFileSet`; `FileStorageIncremental` device annotated (needs a matching Director Storage resource; given its own `Media Type = FileIncr`); §17.9 empty code block converted to prose; `update bvfs` → `.bvfs_update`; `list jobs last=7` comment clarified (job count, not days). *(Still open: verify the 13-item restore-menu listing and `make_catalog_backup.pl` output filename against a live Bareos install — both need a running system to confirm.)*
+7. ✅ Module 03: exclude list trimmed to patterns that can actually match the chosen sources (with an explanatory comment); push example switched from `root@` to `backupuser@`.
+8. ✅ Module 09: PID-file lock replaced with atomic `flock` on an FD (kernel-released, no stale locks). *(The tee/journal double-logging note was deemed acceptable redundancy and left.)*
+9. ✅ Module 11: auditd now watches both `/usr/bin/restic` and `/usr/local/bin/restic` in both rule sets.
+10. ✅ Module 02: `-d`/`--compare` added to the flags reference table; useless-use-of-cat in the snar inspection fixed.
+11. ✅ Module 00: Answer 4 aligned with the body's "unless versioned" nuance; crash-consistent "Method" column generalised to "snapshot without quiescing".
 
 ---
 

@@ -395,8 +395,10 @@ cat > /etc/audit/rules.d/backup.rules << 'EOF'
 -w /usr/local/sbin/backup-gpg.sh    -p x -k backup_exec
 -w /usr/local/sbin/verify-backup.sh -p x -k backup_exec
 
-# Log restic binary execution
+# Log restic binary execution — watch BOTH install paths (dnf/EPEL installs
+# to /usr/bin; the manual install from Module 06 §2.2 uses /usr/local/bin)
 -w /usr/bin/restic -p x -k backup_exec
+-w /usr/local/bin/restic -p x -k backup_exec
 
 # Log any attempt to remove backup archives
 -a always,exit -F arch=b64 -S unlinkat -S rename -S renameat \
@@ -883,6 +885,7 @@ echo "Recovery key: OK"
 -w /backup/ -p wa -k backup_storage
 -w /usr/local/sbin/backup-master.sh -p x -k backup_exec
 -w /usr/bin/restic -p x -k backup_exec
+-w /usr/local/bin/restic -p x -k backup_exec
 EOF
 
 augenrules --load

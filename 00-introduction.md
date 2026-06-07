@@ -297,7 +297,7 @@ Backing up files that are actively being written to can produce an inconsistent 
 
 | Type | Description | Method |
 |------|-------------|--------|
-| **Crash-consistent** | State as if power was suddenly cut | LVM snapshot |
+| **Crash-consistent** | State as if power was suddenly cut | Snapshot without quiescing (e.g. raw LVM snapshot) |
 | **Application-consistent** | Application is quiesced before backup | Pre/post scripts, flush+freeze |
 | **Database-consistent** | DB transactions are committed or rolled back | `mysqldump`, `pg_dump`, hot backup agents |
 
@@ -445,7 +445,7 @@ For each of the following, state whether it qualifies as a backup and why:
 1. **RPO** = Recovery Point Objective. It measures the maximum acceptable amount of data loss expressed as time — how old the most recent backup can be when a failure occurs.
 2. **Incremental** backs up changes since the *last backup of any type*. **Differential** backs up changes since the *last full backup*. Incrementals are smaller per run; differentials require only two sets to restore.
 3. **3** copies of data, on **2** different media types, with **1** copy offsite. Three copies ensure redundancy; two media types prevent a single media failure wiping all copies; offsite protects against site-level disasters.
-4. A mirror replicates all changes including deletions and corruption. There is no historical copy to revert to. If ransomware encrypts the source, the mirror is encrypted too.
+4. A mirror replicates all changes including deletions and corruption. There is no historical copy to revert to — unless it is combined with versioning or snapshots. If ransomware encrypts the source, a plain mirror is encrypted too.
 5. **Backup consistency** means the backed-up data represents a valid, recoverable state. **Crash-consistent** = data as of the moment of copy (like a power cut — journals may need replaying). **Application-consistent** = the application was quiesced, buffers flushed, before the backup was taken.
 6. Any three of: human error (accidental deletion), hardware failure, software bugs/corruption, ransomware, natural disaster, power failure, logical corruption.
 7. The backup media or archive may be corrupt, the restore process may fail, or data may be incomplete. Without a test restore, you cannot know if the backup is actually usable.

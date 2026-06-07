@@ -117,10 +117,9 @@ Add these to `/etc/hosts` on both machines:
 
 ## Conventions Used in This Course
 
-- `#` prompt = command runs as **root**
-- `$` prompt = command runs as **regular user**
-- `[server]#` = run on backup-server
-- `[client]#` = run on backup-client
+- Two command styles are used, by module type:
+  - **Tool modules (00–08):** plain `sudo` commands in copy-paste-ready blocks
+  - **Scenario modules (09–12):** prompt markers — `#` = root, `$` = regular user, `[server]#` = run on backup-server, `[client]#` = run on backup-client (strip the prompt before pasting)
 - Config blocks show **every directive** with inline comments (`# explanation`)
 - Each module ends with **Lab Exercises** and **Review Questions**
 - Answers to Review Questions are provided at the bottom of each module
